@@ -1,14 +1,11 @@
 package com.thizthizzydizzy.movecraft;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
-import java.util.logging.Level;
 import net.minecraft.server.v1_14_R1.ChatMessageType;
 import net.minecraft.server.v1_14_R1.IChatBaseComponent;
 import net.minecraft.server.v1_14_R1.PacketPlayOutChat;
@@ -57,6 +54,7 @@ public class Craft{
     public Player pilot;
     public Direction cruise = Direction.NONE;
     private int timer = 0;
+    private int maneuverTimer = 0;
     private final World world;
     private BukkitTask ticker;
     private BoundingBox bbox;
@@ -205,6 +203,22 @@ public class Craft{
         blocksThatPop.add(Material.ORANGE_BANNER);
         blocksThatPop.add(Material.CYAN_BANNER);
         blocksThatPop.add(Material.BROWN_BANNER);
+        blocksThatPop.add(Material.WHITE_BED);
+        blocksThatPop.add(Material.LIGHT_BLUE_BED);
+        blocksThatPop.add(Material.LIGHT_GRAY_BED);
+        blocksThatPop.add(Material.BLUE_BED);
+        blocksThatPop.add(Material.GREEN_BED);
+        blocksThatPop.add(Material.LIME_BED);
+        blocksThatPop.add(Material.YELLOW_BED);
+        blocksThatPop.add(Material.PINK_BED);
+        blocksThatPop.add(Material.RED_BED);
+        blocksThatPop.add(Material.MAGENTA_BED);
+        blocksThatPop.add(Material.PURPLE_BED);
+        blocksThatPop.add(Material.BLACK_BED);
+        blocksThatPop.add(Material.GRAY_BED);
+        blocksThatPop.add(Material.ORANGE_BED);
+        blocksThatPop.add(Material.CYAN_BED);
+        blocksThatPop.add(Material.BROWN_BED);
     }
     public Craft(Movecraft plugin, CraftType type, ArrayList<Block> blocks, Player pilot){
         this.plugin = plugin;
@@ -229,6 +243,7 @@ public class Craft{
             }
             return;
         }
+        if(maneuverTimer<type.moveTime)maneuverTimer++;
         if(cruise==Direction.NONE){
             timer = 0;
         }else{
@@ -284,6 +299,8 @@ public class Craft{
         rotateAbout(getOrigin(), amount);
     }
     public void rotateAbout(Location origin, int amount){//rotate about the block
+        while(amount>=4)amount-=4;
+        while(amount<0)amount+=4;
         ArrayList<BlockMovement> movements = new ArrayList<>();
         for(Block block : blocks){
             movements.add(new BlockMovement(block.getLocation(), rotate(block.getLocation(), origin, amount), amount));
@@ -294,6 +311,23 @@ public class Craft{
             Location l = e.getLocation();
             l.setYaw(l.getYaw()+90*amount);
             e.teleport(l, PlayerTeleportEvent.TeleportCause.PLUGIN);
+        }
+        while(amount>0){
+            amount--;
+            switch(cruise){
+                case NORTH:
+                    cruise = Direction.EAST;
+                    break;
+                case EAST:
+                    cruise = Direction.SOUTH;
+                    break;
+                case SOUTH:
+                    cruise = Direction.WEST;
+                    break;
+                case WEST:
+                    cruise = Direction.NORTH;
+                    break;
+            }
         }
     }
     private void move(){
@@ -309,6 +343,40 @@ public class Craft{
         ArrayList<BlockMovement> movements = new ArrayList<>();
         for(Block block : blocks){
             movements.add(new BlockMovement(block.getLocation(), block.getRelative(cruise.x*type.moveDistance, cruise.y*type.moveDistance, cruise.z*type.moveDistance).getLocation()));
+        }
+        move(movements, false);
+    }
+    private void move(BlockFace face, int distance){
+        if(disabled){
+            notifyPilot("Craft is disabled!");
+            return;
+        }
+        refuel();
+        if(fuel<=0){
+            notifyPilot("Out of fuel!");
+            return;
+        }
+        ArrayList<BlockMovement> movements = new ArrayList<>();
+        for(Block block : blocks){
+            Block newBlock = block;
+            for(int i = 0; i<distance; i++)newBlock = newBlock.getRelative(face);
+            movements.add(new BlockMovement(block.getLocation(), newBlock.getLocation()));
+        }
+        move(movements, false);
+    }
+    private void move(int x, int y, int z){
+        if(disabled){
+            notifyPilot("Craft is disabled!");
+            return;
+        }
+        refuel();
+        if(fuel<=0){
+            notifyPilot("Out of fuel!");
+            return;
+        }
+        ArrayList<BlockMovement> movements = new ArrayList<>();
+        for(Block block : blocks){
+            movements.add(new BlockMovement(block.getLocation(), block.getRelative(x,y,z).getLocation()));
         }
         move(movements, false);
     }
@@ -397,12 +465,15 @@ public class Craft{
         for(Entity e : entityMovements.keySet()){
             e.teleport(entityMovements.get(e), PlayerTeleportEvent.TeleportCause.PLUGIN);
         }
+        if(pilot.getLocation().distance(getOrigin())>1000){
+            actionbar("Ship moved to ("+getOrigin().getBlockX()+", "+getOrigin().getBlockY()+", "+getOrigin().getBlockZ()+")");
+        }
         return entityMovements.keySet();
     }
     private Location getOrigin(){
         return getBoundingBox().getCenter().toLocation(world);
     }
-    private BoundingBox getBoundingBox(){
+    BoundingBox getBoundingBox(){
         if(bbox==null)calculateBoundingBox();
         return bbox;
     }
@@ -754,6 +825,24 @@ public class Craft{
         notifyPilot(ChatColor.DARK_RED+"Your craft has been stopped to help prevent further damage.");
         notifyPilot(ChatColor.DARK_RED+""+ChatColor.BOLD+"Error Code: "+code);
         notifyPilot(ChatColor.DARK_RED+"Please send this code, along with as many details as possible to ThizThizzyDizzy so the problem can be fixed.");
+    }
+    public boolean isPilotOnBoard(){
+        Block b = world.getBlockAt(pilot.getLocation());
+        if(b.getType()==Material.AIR||b.getType()==Material.CAVE_AIR){
+            b = b.getRelative(BlockFace.DOWN);
+        }
+        if(b.getType()==Material.AIR||b.getType()==Material.CAVE_AIR){
+            b = b.getRelative(BlockFace.DOWN);
+        }
+        if(blocks.contains(b)){
+            return true;
+        }
+        return false;
+    }
+    public void maneuver(int x, int y, int z){
+        if(maneuverTimer<type.moveTime/type.moveDistance)return;
+        timer = maneuverTimer = 0;
+        move(x, y, z);
     }
     private static class BlockChange implements Comparable<BlockChange>{
         private final Material type;

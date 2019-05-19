@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.MemorySection;
@@ -26,6 +27,12 @@ public class Movecraft extends JavaPlugin{
         if(craft!=null){
             craft.rotateAbout(sign.getLocation(), amount);
         }
+    }
+    public Craft getCraft(Location location){
+        for(Craft craft : crafts){
+            if(craft.getBoundingBox().contains(location.toVector()))return craft;
+        }
+        return null;
     }
     public static class Tags{
         public static Set<Material> signs = new HashSet<>();
