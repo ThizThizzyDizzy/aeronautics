@@ -1,6 +1,32 @@
+//IMPORTANT THINGS
+//TODO Skiff launches and moving with other crafts
+    //hopefully done?
+//TODO Cannon Director ?
+//TODO AA Director ?
+//TODO /cruise, /release, /pilot, etc.
+//TODO make tnt explode when it hits something
+    //hopefully done?
+//TODO ship structural integrity bossbar, showing how close to death the ship is from before it took the first bit of damage (disappears when ship is repiloted, or after ship exits combat)
+//TODO command to customize all of this
+
+
+//TODO notify everyone with actionbar when ship is on fire
+//TODO stop ship on logoff
+//TODO move spawnpoints with ships
+//TODO status and fuel signs
+
+//TODO phantom explosions while a ship is sinking?
+//TODO let ships be repaired, moved, etc. while sinking until they hit something
+/*
+    Ship health bossbar (shows minimum possible health)
+        Minimum health is calculated based off of all stats
+            For example, if the ship had 60%/50% wool, and now has 55%/50% wool, that is at 50% health
+            If the ship had a size of 500/400, and now has 425/400, that is at 25% health
+            The LOWEST of these numbers is displayed on the bossbar
+*/
 package com.thizthizzydizzy.movecraft;
 import com.thizthizzydizzy.movecraft.event.BlockChange;
-import com.thizthizzydizzy.movecraft.event.SignClick;
+import com.thizthizzydizzy.movecraft.event.PlayerInteract;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -12,6 +38,9 @@ import java.util.logging.Logger;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.Sign;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.type.WallSign;
 import org.bukkit.configuration.MemorySection;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.PluginDescriptionFile;
@@ -20,12 +49,23 @@ import org.bukkit.plugin.java.JavaPlugin;
 public class Movecraft extends JavaPlugin{
     public static final String[] helm = {"\\  |  /","-       -","/  |  \\"};
     public ArrayList<Craft> sinking = new ArrayList<>();
-    public HashMap<Material, Integer> fuels = new HashMap<>();
     public static Movecraft instance;
-    public void rotateSubcraft(CraftType type, Player player, Block sign, int amount){
+    private static final ArrayList<String> movements = new ArrayList<>();
+    static{
+        movements.add("fly");
+        movements.add("dive");
+    }
+    public void rotateSubcraft(CraftType type, Player player, Block sign, int amount, String name){
+        Craft parent = getCraft(sign);
         Craft craft = detect(type, player, sign);
         if(craft!=null){
-            craft.rotateAbout(sign.getLocation(), amount);
+            if(!craft.checkCrew(player))return;
+            if(parent!=null){
+                if(!parent.checkCrew(player))return;
+                parent.rotateSubcraft(craft, player, sign, amount, name);
+            }else{
+                craft.rotateAbout(sign.getLocation(), amount);
+            }
         }
     }
     public Craft getCraft(Location location){
@@ -33,6 +73,22 @@ public class Movecraft extends JavaPlugin{
             if(craft.getBoundingBox().contains(location.toVector()))return craft;
         }
         return null;
+    }
+    public void clearCopilot(Player player){
+        for(Craft craft : crafts){
+            craft.copilots.remove(player);
+        }
+    }
+    void clearDirector(Player player){
+        for(Craft craft : crafts){
+            craft.aaDirectors.remove(player);
+            craft.cannonDirectors.remove(player);
+        }
+    }
+    public void playerJoined(Player player){
+        for(Craft craft : crafts){
+            if(craft.pilot.getUniqueId().equals(player.getUniqueId()))craft.pilot = player;
+        }
     }
     public static class Tags{
         public static Set<Material> signs = new HashSet<>();
@@ -79,124 +135,159 @@ public class Movecraft extends JavaPlugin{
     public ArrayList<CraftType> craftTypes = new ArrayList<>();
     public ArrayList<CraftType> subcraftTypes = new ArrayList<>();
     public ArrayList<Craft> crafts = new ArrayList<>();
+    public int constructionTimeout,combatTimeout,combatPilots,combatCrew,damageTimeout;
+    public boolean combatAND,combatBossbar;
+    public double redThreshold,yellowThreshold,tntThreshold;
     public void onEnable(){
         instance = this;
         PluginDescriptionFile pdfFile = getDescription();
         Logger logger = getLogger();
         //<editor-fold defaultstate="collapsed" desc="Register Events">
         PluginManager pm = getServer().getPluginManager();
-        pm.registerEvents(new SignClick(this), this);
+        pm.registerEvents(new PlayerInteract(this), this);
         pm.registerEvents(new BlockChange(this), this);
 //</editor-fold>
         //<editor-fold defaultstate="collapsed" desc="Register Config">
         saveDefaultConfig();
         getConfig().options().copyDefaults(true);
 //</editor-fold>
-        MemorySection fuels = (MemorySection) getConfig().get("fuels");
-        for(String fuel : fuels.getKeys(false)){
-            this.fuels.put(Material.matchMaterial(fuel), (int)fuels.get(fuel));
-        }
-        ArrayList<Object> l = (ArrayList<Object>)getConfig().getList("craft-types");
+//<editor-fold defaultstate="collapsed" desc="Loading Config">
+        ArrayList<Object> l = (ArrayList<Object>)getConfig().getList("crafts");
         for(Object o : l){
             LinkedHashMap craft = (LinkedHashMap)o;
             CraftType type = new CraftType((String)craft.get("name"));
-            for(Object aKey : craft.keySet()){
-                if(aKey instanceof String){
-                    String key = (String)aKey;
-                    switch(key.toLowerCase()){
-                        case "min-size":
-                            type.minSize = (int)craft.get(aKey);
+            type.minSize = (int) craft.get("min-size");
+            type.maxSize = (int) craft.get("max-size");
+            for(Object obn : craft.keySet())System.out.println(obn+" "+craft.get(obn).toString());
+            if(craft.containsKey("fuels")){
+            ArrayList<Object> fuels = (ArrayList<Object>)craft.get("fuels");
+                for(Object ob : fuels){
+                    LinkedHashMap f = (LinkedHashMap)ob;
+                    type.fuels.put(Material.matchMaterial((String)f.get("item")), (int)f.get("value"));
+                }
+            }
+            for(String movement : movements){
+                if(craft.containsKey(movement)){
+                    LinkedHashMap fly = (LinkedHashMap) craft.get(movement);
+                    MovementDetails move = new MovementDetails((int)fly.get("move-time"), (int)fly.get("horiz-move-distance"), (int)fly.get("vert-move-distance"));
+                    if(fly.containsKey("required-blocks")){
+                        ArrayList<Object> requiredBlocks = (ArrayList<Object>)fly.get("required-blocks");
+                        for(Object ob : requiredBlocks){
+                            LinkedHashMap b = (LinkedHashMap)ob;
+                            Object required = b.get("required");
+                            if(required instanceof Double){
+                                move.requiredRatios.put(getBlocks((String)b.get("block")),((Number)required).floatValue());
+                            }else move.requiredBlocks.put(getBlocks((String)b.get("block")), (int)required);
+                        }
+                    }
+                    if(fly.containsKey("engines")){
+                        ArrayList<Object> engines = (ArrayList<Object>)fly.get("engines");
+                        for(Object ob : engines){
+                            LinkedHashMap b = (LinkedHashMap)ob;
+                            Object required = b.get("required");
+                            if(required instanceof Double){
+                                move.requiredEngineRatios.put(getBlocks((String)b.get("block")),((Number)required).floatValue());
+                            }else move.requiredEngineBlocks.put(getBlocks((String)b.get("block")), (int)required);
+                        }
+                    }
+                    switch(movement){
+                        case "fly":
+                            type.flight = move;
                             break;
-                        case "max-size":
-                            type.maxSize = (int)craft.get(aKey);
-                            break;
-                        case "engine-percent":
-                            type.enginePercent = (double)craft.get(aKey);
-                            break;
-                        case "allowed-blocks":
-                            ArrayList list = (ArrayList)craft.get(aKey);
-                            ArrayList<Material> mats = new ArrayList<>();
-                            for(Object obj : list){
-                                mats.addAll(getBlocks((String)obj));
-                            }
-                            FOR:for(Material m : Material.values()){
-                                if(m.isBlock()&&!m.isLegacy()&&!mats.contains(m)){
-                                    type.banBlock(m);
-                                }
-                            }
-                            break;
-                        case "banned-blocks":
-                            list = (ArrayList)craft.get(aKey);
-                            for(Object obj : list){
-                                type.banBlocks((String)obj);
-                            }
-                            break;
-                        case "environments":
-                            list = (ArrayList)craft.get(aKey);
-                            for(Object obj : list){
-                                type.environments.add(Environment.match((String)obj));
-                            }
-                            break;
-                        case "engines":
-                            list = (ArrayList)craft.get(aKey);
-                            for(Object obj : list){
-                                type.addEngine((String)obj);
-                            }
-                            break;
-                        case "limited-blocks":
-                            LinkedHashMap map = (LinkedHashMap)craft.get(aKey);
-                            for(Object str : map.keySet()){
-                                type.limitBlocks(getBlocks(str), (int)map.get(str));
-                            }
-                            break;
-                        case "banned-ratios":
-                            map = (LinkedHashMap)craft.get(aKey);
-                            for(Object str : map.keySet()){
-                                type.addBannedRatio(getBlocks(str), (float)(double)map.get(str));
-                            }
-                            break;
-                        case "required-ratios":
-                            map = (LinkedHashMap)craft.get(aKey);
-                            for(Object str : map.keySet()){
-                                type.addRequiredRatio(getBlocks(str), (float)(double)map.get(str));
-                            }
-                            break;
-                        case "move-time":
-                            type.moveTime = (int) craft.get(aKey);
-                            break;
-                        case "move-distance":
-                            type.moveDistance = (int) craft.get(aKey);
+                        case "dive":
+                            type.dive = move;
                             break;
                     }
+                }
+            }
+            if(craft.containsKey("allowed-blocks")){
+                ArrayList list = (ArrayList)craft.get("allowed-blocks");
+                ArrayList<Material> mats = new ArrayList<>();
+                for(Object obj : list){
+                    mats.addAll(getBlocks((String)obj));
+                }
+                FOR:for(Material m : Material.values()){
+                    if(m.isBlock()&&!m.isLegacy()&&!mats.contains(m)){
+                        type.banBlock(m);
+                    }
+                }
+            }
+            if(craft.containsKey("banned-blocks")){
+                ArrayList list = (ArrayList)craft.get("banned-blocks");
+                for(Object obj : list){
+                    type.banBlocks((String)obj);
+                }
+            }
+            if(craft.containsKey("limited-blocks")){
+                ArrayList<Object> limitedBlocks = (ArrayList<Object>)craft.get("limited-blocks");
+                for(Object ob : limitedBlocks){
+                    LinkedHashMap b = (LinkedHashMap)ob;
+                    Object required = b.get("required");
+                    if(required instanceof Double){
+                        type.addBannedRatio((String)b.get("block"), ((Number)required).floatValue());
+                    }else type.limitBlock((String)b.get("block"), (int)required);
                 }
             }
             craftTypes.add(type);
         }
-        l = (ArrayList<Object>)getConfig().getList("subcrafts");
-        for(Object o : l){
-            LinkedHashMap craft = (LinkedHashMap)o;
-            CraftType type = new CraftType((String)craft.get("name"), true);
-            for(Object aKey : craft.keySet()){
-                if(aKey instanceof String){
-                    String key = (String)aKey;
-                    switch(key.toLowerCase()){
-                        case "min-size":
-                            type.minSize = (int)craft.get(aKey);
-                            break;
-                        case "max-size":
-                            type.maxSize = (int)craft.get(aKey);
-                            break;
-                        case "banned-blocks":
-                            ArrayList list = (ArrayList)craft.get(aKey);
-                            for(Object obj : list){
-                                type.banBlock((String)obj);
-                            }
-                            break;
+        constructionTimeout = getConfig().getInt("construction-timeout");
+        combatTimeout = getConfig().getInt("combat-timeout");
+        combatPilots = getConfig().getInt("combat-pilots");
+        combatCrew = getConfig().getInt("combat-crew");
+        combatAND = getConfig().getString("combat-mode").trim().equalsIgnoreCase("and");
+        combatBossbar = getConfig().getBoolean("combat-bossbar");
+        damageTimeout = getConfig().getInt("damage-report-timeout");
+        yellowThreshold = getConfig().getDouble("yellow-threshold");
+        redThreshold = getConfig().getDouble("red-threshold");
+        tntThreshold = getConfig().getDouble("tnt-threshold");
+        for(CraftType type : craftTypes){
+            for(String child : type.tempChildren){
+                for(CraftType possible : craftTypes){
+                    if(possible.name.equalsIgnoreCase(child)){
+                        type.children.add(possible);
+                        break;
                     }
                 }
             }
-            subcraftTypes.add(type);
+            type.tempChildren.clear();
         }
+        l = (ArrayList<Object>)getConfig().getList("subcrafts");
+        for(Object o : l){
+            LinkedHashMap craft = (LinkedHashMap)o;
+            CraftType type = new CraftType((String)craft.get("name"));
+            type.minSize = (int)craft.get("min-size");
+            type.maxSize = (int)craft.get("max-size");
+            if(craft.containsKey("allowed-blocks")){
+                ArrayList list = (ArrayList)craft.get("allowed-blocks");
+                ArrayList<Material> mats = new ArrayList<>();
+                for(Object obj : list){
+                    mats.addAll(getBlocks((String)obj));
+                }
+                FOR:for(Material m : Material.values()){
+                    if(m.isBlock()&&!m.isLegacy()&&!mats.contains(m)){
+                        type.banBlock(m);
+                    }
+                }
+            }
+            if(craft.containsKey("banned-blocks")){
+                ArrayList list = (ArrayList)craft.get("banned-blocks");
+                for(Object obj : list){
+                    type.banBlocks((String)obj);
+                }
+            }
+            if(craft.containsKey("limited-blocks")){
+                ArrayList<Object> limitedBlocks = (ArrayList<Object>)craft.get("limited-blocks");
+                for(Object ob : limitedBlocks){
+                    LinkedHashMap b = (LinkedHashMap)ob;
+                    Object required = b.get("required");
+                    if(required instanceof Double){
+                        type.addBannedRatio((String)b.get("block"), ((Number)required).floatValue());
+                    }else type.limitBlock((String)b.get("block"), (int)required);
+                }
+            }
+            craftTypes.add(type);
+        }
+//</editor-fold>
         logger.log(Level.INFO, "{0} has been enabled! (Version {1}) by ThizThizzyDizzy", new Object[]{pdfFile.getName(), pdfFile.getVersion()});
     }
     public void onDisable(){
@@ -219,6 +310,38 @@ public class Movecraft extends JavaPlugin{
         if(object instanceof String){
             String str = (String)object;
             switch(str.toLowerCase().replace("_", " ").trim()){
+                case "stripped wood":
+                    theBlocks.add(Material.STRIPPED_OAK_WOOD);
+                    theBlocks.add(Material.STRIPPED_BIRCH_WOOD);
+                    theBlocks.add(Material.STRIPPED_SPRUCE_WOOD);
+                    theBlocks.add(Material.STRIPPED_DARK_OAK_WOOD);
+                    theBlocks.add(Material.STRIPPED_ACACIA_WOOD);
+                    theBlocks.add(Material.STRIPPED_JUNGLE_WOOD);
+                    break;
+                case "wood":
+                    theBlocks.add(Material.OAK_WOOD);
+                    theBlocks.add(Material.BIRCH_WOOD);
+                    theBlocks.add(Material.SPRUCE_WOOD);
+                    theBlocks.add(Material.DARK_OAK_WOOD);
+                    theBlocks.add(Material.ACACIA_WOOD);
+                    theBlocks.add(Material.JUNGLE_WOOD);
+                    break;
+                case "stripped log":
+                    theBlocks.add(Material.STRIPPED_OAK_LOG);
+                    theBlocks.add(Material.STRIPPED_BIRCH_LOG);
+                    theBlocks.add(Material.STRIPPED_SPRUCE_LOG);
+                    theBlocks.add(Material.STRIPPED_DARK_OAK_LOG);
+                    theBlocks.add(Material.STRIPPED_ACACIA_LOG);
+                    theBlocks.add(Material.STRIPPED_JUNGLE_LOG);
+                    break;
+                case "log":
+                    theBlocks.add(Material.OAK_LOG);
+                    theBlocks.add(Material.BIRCH_LOG);
+                    theBlocks.add(Material.SPRUCE_LOG);
+                    theBlocks.add(Material.DARK_OAK_LOG);
+                    theBlocks.add(Material.ACACIA_LOG);
+                    theBlocks.add(Material.JUNGLE_LOG);
+                    break;
                 case "wool":
                     theBlocks.add(Material.WHITE_WOOL);
                     theBlocks.add(Material.RED_WOOL);
@@ -632,8 +755,7 @@ public class Movecraft extends JavaPlugin{
             Craft current = getCraft(player);
             if(current!=null)current.release();
         }
-        //TODO Watch for pilot signs
-        ArrayList<Block> craft = toList(getBlocks(type.bannedBlocks, sign, type.maxSize*100));
+        ArrayList<Block> craft = toList(getBlocks(type.bannedBlocks, sign, type.maxSize+10));
         if(craft.size()<type.minSize){
             player.sendMessage("Not enough blocks! ("+craft.size()+"<"+type.minSize+")");
             return null;
@@ -642,12 +764,24 @@ public class Movecraft extends JavaPlugin{
             player.sendMessage("Too many blocks! ("+craft.size()+">"+type.maxSize+")");
             return null;
         }
-        for(ArrayList<Material> materials : type.requiredRatios.keySet()){
-            float requiredRatio = type.requiredRatios.get(materials);
-            float actualRatio = getBlocks(craft, materials)/(float)craft.size();
-            if(actualRatio<requiredRatio){
-                player.sendMessage("Not enough blocks: "+materials.get(0).toString()+" or similar! ("+Math.round(actualRatio*1000)/10f+"%>"+Math.round(requiredRatio*1000)/10f+"%)");
-                return null;
+        if(type.flight!=null){
+            for(ArrayList<Material> materials : type.flight.requiredRatios.keySet()){
+                float requiredRatio = type.flight.requiredRatios.get(materials);
+                float actualRatio = getBlocks(craft, materials)/(float)craft.size();
+                if(actualRatio<requiredRatio){
+                    player.sendMessage("Not enough flight blocks: "+materials.get(0).toString()+" or similar! ("+Math.round(actualRatio*1000)/10f+"%>"+Math.round(requiredRatio*1000)/10f+"%)");
+                    return null;
+                }
+            }
+        }
+        if(type.dive!=null){
+            for(ArrayList<Material> materials : type.dive.requiredRatios.keySet()){
+                float requiredRatio = type.dive.requiredRatios.get(materials);
+                float actualRatio = getBlocks(craft, materials)/(float)craft.size();
+                if(actualRatio<requiredRatio){
+                    player.sendMessage("Not enough dive blocks: "+materials.get(0).toString()+" or similar! ("+Math.round(actualRatio*1000)/10f+"%>"+Math.round(requiredRatio*1000)/10f+"%)");
+                    return null;
+                }
             }
         }
         for(ArrayList<Material> material : type.bannedRatios.keySet()){
@@ -674,11 +808,41 @@ public class Movecraft extends JavaPlugin{
                 }
             }
         }
-        player.sendMessage("Successfully piloted craft! Size: "+craft.size());
-        if(!type.subcraft){
-            crafts.add(new Craft(this, type, craft, player));
+        HashSet<String> pilots = new HashSet<>();
+        boolean allowed = true;
+        for(Block b : craft){
+            if(Movecraft.Tags.isSign(b.getType())){
+                Sign s = (Sign) b.getState();
+                if(s.getLine(0).equalsIgnoreCase("Pilot:")){
+                    allowed = false;
+                    pilots.add(s.getLine(1));
+                    pilots.add(s.getLine(2));
+                    pilots.add(s.getLine(3));
+                }
+            }
         }
-        return new Craft(this, type, craft, player);
+        for(String s : pilots){
+            if(player.getName().equals(s))allowed = true;
+        }
+        if(!allowed){
+            player.sendMessage("You are not a registered pilot on this craft!");
+            return null;
+        }
+        HashSet<Block> blocks = new HashSet<>(craft);
+        Craft theCraft = new Craft(this, type, blocks, player);
+        if(!type.subcraft){
+            Craft parent = getCraft(sign);
+            if(parent!=null){
+                String error = parent.undock(blocks);
+                if(error!=null){
+                    player.sendMessage("Cannot undock from ship: "+error);
+                    return null;
+                }
+            }
+            crafts.add(theCraft);
+        }
+        player.sendMessage("Successfully piloted craft! Size: "+craft.size());
+        return theCraft;
     }
     private HashMap<Integer, ArrayList<Block>> getBlocks(Collection<Material> bannedMaterials, Block startingBlock, int maxBlocks){
         //layer zero
@@ -769,7 +933,48 @@ public class Movecraft extends JavaPlugin{
         }
         return null;
     }
-    public boolean isHelm(String... lines){
+    public static boolean isHelm(String... lines){
         return (lines.length>=1&&lines[0].equalsIgnoreCase("[helm]"))||lines.length>=3&&lines[0].equals(helm[0])&&lines[1].equals(helm[1])&&lines[2].equals(helm[2]);
+    }
+    public static Direction getSignRotation(BlockData data){
+        if(data instanceof WallSign){
+            WallSign sign = (WallSign)data;
+            switch(sign.getFacing().getOppositeFace()){
+                case NORTH:
+                    return Direction.NORTH;
+                case SOUTH:
+                    return Direction.SOUTH;
+                case EAST:
+                    return Direction.EAST;
+                case WEST:
+                    return Direction.WEST;
+                default:
+                    return Direction.NONE;
+            }
+        }
+        if(data instanceof org.bukkit.block.data.type.Sign){
+            org.bukkit.block.data.type.Sign sign = (org.bukkit.block.data.type.Sign)data;
+            switch(sign.getRotation().getOppositeFace()){
+                case NORTH:
+                case NORTH_NORTH_EAST:
+                case NORTH_NORTH_WEST:
+                    return Direction.NORTH;
+                case EAST:
+                case EAST_NORTH_EAST:
+                case EAST_SOUTH_EAST:
+                    return Direction.EAST;
+                case WEST:
+                case WEST_NORTH_WEST:
+                case WEST_SOUTH_WEST:
+                    return Direction.WEST;
+                case SOUTH:
+                case SOUTH_SOUTH_EAST:
+                case SOUTH_SOUTH_WEST:
+                    return Direction.SOUTH;
+                default:
+                    return Direction.NONE;
+            }
+        }
+        return Direction.NONE;
     }
 }

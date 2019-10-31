@@ -1,11 +1,13 @@
 package com.thizthizzydizzy.movecraft.event;
+import com.thizthizzydizzy.movecraft.Craft;
 import com.thizthizzydizzy.movecraft.Movecraft;
+import java.util.ArrayList;
+import org.bukkit.Material;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntitySpawnEvent;
 public class MobSpawn implements Listener{
     private final Movecraft movecraft;
-    //TODO rename class, this also handles right-clicking with a stick
     public MobSpawn(Movecraft movecraft){
         this.movecraft = movecraft;
     }
@@ -41,11 +43,9 @@ public class MobSpawn implements Listener{
             case MINECART_MOB_SPAWNER:
             case PAINTING:
             case PLAYER:
-            case PRIMED_TNT:
             case SHULKER_BULLET:
             case WITHER_SKULL:
             case UNKNOWN:
-            case SMALL_FIREBALL:
             case SNOWBALL:
             case SPECTRAL_ARROW:
             case SPLASH_POTION:
@@ -53,6 +53,13 @@ public class MobSpawn implements Listener{
             case TRIDENT:
             case VEX:
             case WITHER:
+                return;
+            case SMALL_FIREBALL:
+            case PRIMED_TNT://this won't work properly if two different crafts have their weapons butted up against each other...  but when is that gonna happen?
+                Craft craft = movecraft.getCraft(event.getLocation());
+                if(craft!=null){
+                    craft.newRound(event.getEntity());
+                }
                 return;
         }
         if(movecraft.getCraft(event.getLocation())!=null)event.setCancelled(true);

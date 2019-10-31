@@ -13,6 +13,8 @@ import org.bukkit.Axis;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Sound;
+import org.bukkit.SoundCategory;
 import org.bukkit.World;
 import org.bukkit.block.Banner;
 import org.bukkit.block.Beacon;
@@ -32,15 +34,24 @@ import org.bukkit.block.Lockable;
 import org.bukkit.block.Sign;
 import org.bukkit.block.Skull;
 import org.bukkit.block.Structure;
+import org.bukkit.block.data.Bisected;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Directional;
 import org.bukkit.block.data.MultipleFacing;
 import org.bukkit.block.data.Orientable;
 import org.bukkit.block.data.Rail;
 import org.bukkit.block.data.Rotatable;
+import org.bukkit.block.data.Waterlogged;
+import org.bukkit.block.data.type.RedstoneWire;
+import org.bukkit.block.data.type.RedstoneWire.Connection;
+import org.bukkit.block.data.type.Slab;
+import org.bukkit.block.data.type.Stairs;
+import org.bukkit.block.data.type.TrapDoor;
 import org.bukkit.craftbukkit.v1_14_R1.entity.CraftPlayer;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.TNTPrimed;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.FurnaceInventory;
 import org.bukkit.inventory.ItemStack;
@@ -48,21 +59,37 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.BoundingBox;
 public class Craft{
-    private final Movecraft plugin;
+    private final Movecraft movecraft;
     public final CraftType type;
-    public final ArrayList<Block> blocks;
+    public final Set<Block> blocks;
     public Player pilot;
+    public ArrayList<Player> copilots = new ArrayList<>();
+    public Set<Player> aaDirectors = new HashSet<>();
+    public Set<Player> cannonDirectors = new HashSet<>();
     public Direction cruise = Direction.NONE;
     private int timer = 0;
+    private int involuntaryTimer = 0;
     private int maneuverTimer = 0;
     private final World world;
     private BukkitTask ticker;
     private BoundingBox bbox;
     private boolean sinking = false;
     public boolean moving;
-    public boolean disabled = false;
+    public boolean disabledAir = false;
+    public boolean disabledDive = false;
     public int fuel = 0;
+    public int repilotTimer = 0;
+    private static final int NONE = 0;
+    private static final int CONSTRUCTION = 1;
+    private static final int COMBAT = 2;
+    private int mode = NONE;
+    private int modeTimer = 0;
+    private int damageReport = 0; 
+    private int damageReportTimer = 0;
     private static final Set<Material> blocksThatPop = new HashSet<>();
+    private static final HashMap<Entity, Double> tnt = new HashMap<>();
+    private boolean canFly;
+    private boolean canDive;
     static{
         blocksThatPop.add(Material.REDSTONE_WIRE);
         blocksThatPop.add(Material.REPEATER);
@@ -220,11 +247,13 @@ public class Craft{
         blocksThatPop.add(Material.CYAN_BED);
         blocksThatPop.add(Material.BROWN_BED);
     }
-    public Craft(Movecraft plugin, CraftType type, ArrayList<Block> blocks, Player pilot){
-        this.plugin = plugin;
+    public Craft(Movecraft plugin, CraftType type, Set<Block> blocks, Player pilot){
+        this.movecraft = plugin;
         this.type = type;
         this.blocks = blocks;
         this.pilot = pilot;
+        canFly = type.flight!=null;
+        canDive = type.dive!=null;
         ticker = new BukkitRunnable() {
             @Override
             public void run(){
@@ -232,81 +261,270 @@ public class Craft{
             }
         }.runTaskTimer(plugin, 1, 1);
         world = pilot.getWorld();
-        updateHull(0);
+        updateHull(null, 0, false, null);
     }
     public void tick(){
+        Set<Entity> remove = new HashSet<>();
+        for(Entity e : tnt.keySet()){
+            if(e.isDead()||!(e instanceof TNTPrimed)){
+                remove.add(e);
+                continue;
+            }
+            double oldVel = tnt.get(e);
+            double newVel = e.getVelocity().length();
+            if(newVel<oldVel*(1-movecraft.tntThreshold)){
+                ((TNTPrimed)e).setFuseTicks(0);
+                remove.add(e);
+                return;
+            }
+            if(isOnBoard(e))tnt.put(e, 0d);
+            else{
+                tnt.put(e, newVel);
+                if(oldVel==0){
+                    //TODO check cannon director and change TNT heading
+                }
+            }
+        }
+        int moveTime = getMovementDetails().moveTime;
+        for(Entity r : remove){
+            tnt.remove(r);
+        }
         if(sinking){
             timer++;
-            if(timer>=type.moveTime/2){
-                timer-=type.moveTime/2;
+            if(timer>=moveTime/2){
+                timer-=moveTime/2;
                 sink();
             }
             return;
         }
-        if(maneuverTimer<type.moveTime)maneuverTimer++;
+        if(damageReport>0)damageReportTimer++;
+        if(damageReportTimer>=movecraft.damageTimeout)damageReport = damageReportTimer = 0;
+        modeTimer++;
+        setMode(NONE);
+        if(movecraft.combatAND){
+            if(copilots.size()+1>=movecraft.combatPilots&&getCrew().size()>=movecraft.combatCrew){
+                setMode(COMBAT);
+            }
+        }else{
+            if(copilots.size()+1>=movecraft.combatPilots||getCrew().size()>=movecraft.combatCrew){
+                setMode(COMBAT);
+            }
+        }
+        if(isPilotOnBoard()){
+            repilotTimer = 0;
+        }else{
+            repilotTimer++;
+            if(repilotTimer>20*10*30){
+                repilot();
+            }
+        }
+        if(maneuverTimer<moveTime)maneuverTimer++;
+        if(isUnderwater(true)){
+            if(!canDive){
+                involuntaryTimer++;
+                if(involuntaryTimer>=moveTime/Math.max(getMovementDetails().horizDist, getMovementDetails().vertDist)){
+                    if(canFly){
+                        move(0, 1, 0, false);
+                    }else{
+                        if(!move(0, -1, 0, false))startSinking();
+                    }
+                    involuntaryTimer = 0;
+                }
+            }
+        }else{
+            if(!canFly){
+                involuntaryTimer++;
+                if(involuntaryTimer>=moveTime/Math.max(getMovementDetails().horizDist, getMovementDetails().vertDist)){
+                    if(!move(0, -1, 0, false))startSinking();
+                    involuntaryTimer = 0;
+                }
+            }
+        }
         if(cruise==Direction.NONE){
             timer = 0;
         }else{
             timer++;
-            if(timer>=type.moveTime){
-                timer-=type.moveTime;
+            if(timer>=moveTime){
+                timer-=moveTime;
                 move();
             }
         }
+        String text = "";
+        if(type.flight!=null){
+            for(ArrayList<Material> m : type.flight.requiredRatios.keySet()){
+                float actual = movecraft.getBlocks(blocks, m)/(float)blocks.size();//TODO OPTOMIZE--don't do this every tick, only when the ship changes
+                float ratio = type.flight.requiredRatios.get(m);
+                float error = Math.abs((actual-ratio)/ratio);
+                ChatColor color = ChatColor.GREEN;
+                if(error<movecraft.yellowThreshold)color = ChatColor.YELLOW;
+                if(error<movecraft.redThreshold)color = ChatColor.RED;
+                if(actual<ratio)color = ChatColor.DARK_RED;
+                text+=", "+color.toString()+friendlyName(m.get(0))+ChatColor.RESET+": "+percent(actual, 2)+"/"+percent(ratio, 2);
+            }
+            for(ArrayList<Material> m : type.flight.requiredBlocks.keySet()){
+                int actual = movecraft.getBlocks(blocks, m);//TODO OPTOMIZE--don't do this every tick, only when the ship changes
+                int blocks = type.flight.requiredBlocks.get(m);
+                float error = Math.abs((actual-blocks)/(float)blocks);
+                ChatColor color = ChatColor.GREEN;
+                if(error<movecraft.yellowThreshold)color = ChatColor.YELLOW;
+                if(error<movecraft.redThreshold)color = ChatColor.RED;
+                if(actual<blocks)color = ChatColor.DARK_RED;
+                text+=", "+color.toString()+friendlyName(m.get(0))+ChatColor.RESET+": "+actual+"/"+blocks;
+            }
+        }
+        if(type.dive!=null){
+            for(ArrayList<Material> m : type.dive.requiredRatios.keySet()){
+                float actual = movecraft.getBlocks(blocks, m)/(float)blocks.size();//TODO OPTOMIZE--don't do this every tick, only when the ship changes
+                float ratio = type.dive.requiredRatios.get(m);
+                float error = Math.abs((actual-ratio)/ratio);
+                ChatColor color = ChatColor.GREEN;
+                if(error<movecraft.yellowThreshold)color = ChatColor.YELLOW;
+                if(error<movecraft.redThreshold)color = ChatColor.RED;
+                if(actual<ratio)color = ChatColor.DARK_RED;
+                text+=", "+color.toString()+friendlyName(m.get(0))+ChatColor.RESET+": "+percent(actual, 2)+"/"+percent(ratio, 2);
+            }
+            for(ArrayList<Material> m : type.dive.requiredBlocks.keySet()){
+                int actual = movecraft.getBlocks(blocks, m);//TODO OPTOMIZE--don't do this every tick, only when the ship changes
+                int blocks = type.dive.requiredBlocks.get(m);
+                float error = Math.abs((actual-blocks)/(float)blocks);
+                ChatColor color = ChatColor.GREEN;
+                if(error<movecraft.yellowThreshold)color = ChatColor.YELLOW;
+                if(error<movecraft.redThreshold)color = ChatColor.RED;
+                if(actual<blocks)color = ChatColor.DARK_RED;
+                text+=", "+color.toString()+friendlyName(m.get(0))+ChatColor.RESET+": "+actual+"/"+blocks;
+            }
+        }
+        if(isUnderwater(true)){
+            for(ArrayList<Material> m : type.dive.requiredEngineRatios.keySet()){
+                float actual = movecraft.getBlocks(blocks, m)/(float)blocks.size();//TODO OPTOMIZE--don't do this every tick, only when the ship changes
+                float ratio = type.dive.requiredEngineRatios.get(m);
+                float error = Math.abs((actual-ratio)/ratio);
+                ChatColor color = ChatColor.GREEN;
+                if(error<movecraft.yellowThreshold)color = ChatColor.YELLOW;
+                if(error<movecraft.redThreshold)color = ChatColor.RED;
+                if(actual<ratio)color = ChatColor.DARK_RED;
+                text+=", "+color.toString()+"Engines- "+friendlyName(m.get(0))+ChatColor.RESET+": "+percent(actual, 2)+"/"+percent(ratio, 2);
+            }
+            for(ArrayList<Material> m : type.dive.requiredEngineBlocks.keySet()){
+                int actual = movecraft.getBlocks(blocks, m);//TODO OPTOMIZE--don't do this every tick, only when the ship changes
+                int blocks = type.dive.requiredEngineBlocks.get(m);
+                float error = Math.abs((actual-blocks)/(float)blocks);
+                ChatColor color = ChatColor.GREEN;
+                if(error<movecraft.yellowThreshold)color = ChatColor.YELLOW;
+                if(error<movecraft.redThreshold)color = ChatColor.RED;
+                if(actual<blocks)color = ChatColor.DARK_RED;
+                text+=", "+color.toString()+"Engines- "+friendlyName(m.get(0))+ChatColor.RESET+": "+actual+"/"+blocks;
+            }
+        }else if(type.flight!=null){
+            for(ArrayList<Material> m : type.flight.requiredEngineRatios.keySet()){
+                float actual = movecraft.getBlocks(blocks, m)/(float)blocks.size();//TODO OPTOMIZE--don't do this every tick, only when the ship changes
+                float ratio = type.flight.requiredEngineRatios.get(m);
+                float error = Math.abs((actual-ratio)/ratio);
+                ChatColor color = ChatColor.GREEN;
+                if(error<movecraft.yellowThreshold)color = ChatColor.YELLOW;
+                if(error<movecraft.redThreshold)color = ChatColor.RED;
+                if(actual<ratio)color = ChatColor.DARK_RED;
+                text+=", "+color.toString()+"Engines- "+friendlyName(m.get(0))+ChatColor.RESET+": "+percent(actual, 2)+"/"+percent(ratio, 2);
+            }
+            for(ArrayList<Material> m : type.flight.requiredEngineBlocks.keySet()){
+                int actual = movecraft.getBlocks(blocks, m);//TODO OPTOMIZE--don't do this every tick, only when the ship changes
+                int blocks = type.flight.requiredEngineBlocks.get(m);
+                float error = Math.abs((actual-blocks)/(float)blocks);
+                ChatColor color = ChatColor.GREEN;
+                if(error<movecraft.yellowThreshold)color = ChatColor.YELLOW;
+                if(error<movecraft.redThreshold)color = ChatColor.RED;
+                if(actual<blocks)color = ChatColor.DARK_RED;
+                text+=", "+color.toString()+"Engines- "+friendlyName(m.get(0))+ChatColor.RESET+": "+actual+"/"+blocks;
+            }
+        }
+        switch(mode){
+            case COMBAT:
+                ChatColor color = ChatColor.GREEN;
+                float error = Math.abs((blocks.size()-type.minSize)/(float)type.minSize);
+                if(error<movecraft.yellowThreshold)color = ChatColor.YELLOW;
+                if(error<movecraft.redThreshold)color = ChatColor.RED;
+                text+=", "+type.minSize+"<"+color+blocks.size()+ChatColor.RESET+"<"+type.maxSize;
+                if(!text.isEmpty())text = text.substring(2);
+                if(damageReport>0){
+                    text+=" | "+ChatColor.RED+"Took "+ChatColor.DARK_RED+damageReport+ChatColor.RED+" damage!";
+                }
+                //TODO what if the ship's on fire?
+                //TODO ammo readout
+                actionbarCrew(text);
+                break;
+            case CONSTRUCTION:
+                for(ArrayList<Material> m : type.bannedRatios.keySet()){
+                    float actual = movecraft.getBlocks(blocks, m)/(float)blocks.size();//TODO OPTOMIZE--don't do this every tick, only when the ship changes
+                    float ratio = type.bannedRatios.get(m);
+                    error = Math.abs((actual-ratio)/ratio);
+                    color = ChatColor.GREEN;
+                    if(error<movecraft.yellowThreshold)color = ChatColor.YELLOW;
+                    if(error<movecraft.redThreshold)color = ChatColor.RED;
+                    if(actual>ratio)color = ChatColor.DARK_RED;
+                    text+=", "+color.toString()+friendlyName(m.get(0))+ChatColor.RESET+": "+percent(actual, 2)+"/"+percent(ratio, 2);
+                }
+                for(ArrayList<Material> m : type.limitedBlocks.keySet()){
+                    int actual = movecraft.getBlocks(blocks, m);//TODO OPTOMIZE--don't do this every tick, only when the ship changes
+                    int limit = type.limitedBlocks.get(m);
+                    error = Math.abs((actual-limit)/(float)limit);
+                    color = ChatColor.GREEN;
+                    if(error<movecraft.yellowThreshold)color = ChatColor.YELLOW;
+                    if(error<movecraft.redThreshold)color = ChatColor.RED;
+                    if(actual>limit)color = ChatColor.DARK_RED;
+                    text+=", "+color.toString()+friendlyName(m.get(0))+ChatColor.RESET+": "+actual+"/"+limit;
+                }
+                color = ChatColor.GREEN;
+                error = Math.abs((blocks.size()-type.minSize)/(float)type.minSize);
+                if(error<movecraft.yellowThreshold)color = ChatColor.YELLOW;
+                if(error<movecraft.redThreshold)color = ChatColor.RED;
+                text+=", "+type.minSize+"<"+color+blocks.size()+ChatColor.RESET+"<"+type.maxSize;
+                if(!text.isEmpty())text = text.substring(2);
+                actionbarCrew(text);
+                break;
+            case NONE:
+                int crew = getCrew().size();
+                int pilots = copilots.size()+1;
+                if(crew>1){
+                    text = "Total Crew: "+crew+"/"+getCrewNames().size();
+                    if(pilots>1){
+                        text = "Pilots: "+pilots+"/"+getPilotNames().size()+" | "+text;
+                    }
+                    actionbarPilots(text);
+                }
+                break;
+        }
     }
-    public void cruise(Sign sign, Direction direction){
-        if(cruise==Direction.NONE||cruise==Direction.UP||cruise==Direction.DOWN){
+    public void cruise(Direction direction){
+        if(cruise==direction){
+            cruise = Direction.NONE;
+        }else{
             cruise = direction;
-        }else{
-            cruise = Direction.NONE;
         }
-        sign.setLine(0, "Cruise: "+(cruise==Direction.NONE?"OFF":"ON"));
-        sign.update();
-    }
-    public void ascend(Sign sign){
-        if(cruise==Direction.UP){
-            cruise = Direction.NONE;
-        }else{
-            cruise = Direction.UP;
-        }
-        sign.setLine(0, "Ascend: "+(cruise==Direction.UP?"ON":"OFF"));
-        sign.update();
-    }
-    public void descend(Sign sign){
-        if(cruise==Direction.DOWN){
-            cruise = Direction.NONE;
-        }else{
-            cruise = Direction.DOWN;
-        }
-        sign.setLine(0, "Descend: "+(cruise==Direction.DOWN?"ON":"OFF"));
-        sign.update();
+        updateSigns();
     }
     public void release(){
+        if(!copilots.isEmpty()){
+            repilot();
+            return;
+        }
         ticker.cancel();
-        notifyPilot("Craft released.");
-        plugin.crafts.remove(this);
+        notifyCrew("Craft released.");
+        movecraft.crafts.remove(this);
     }
     private void rotate(int amount){
-        if(disabled){
-            notifyPilot("Craft is disabled!");
-            return;
-        }
-        refuel();
-        if(fuel<=0){
-            notifyPilot("Out of fuel!");
-            return;
-        }
+        if(checkDisabled())return;
+        if(!checkFuel())return;
         rotateAbout(getOrigin(), amount);
     }
-    public void rotateAbout(Location origin, int amount){//rotate about the block
+    public ArrayList<BlockMovement> rotateAbout(Location origin, int amount){//rotate about the block
         while(amount>=4)amount-=4;
         while(amount<0)amount+=4;
         ArrayList<BlockMovement> movements = new ArrayList<>();
-        for(Block block : blocks){
+        for(Block block : getMovableBlocks()){
             movements.add(new BlockMovement(block.getLocation(), rotate(block.getLocation(), origin, amount), amount));
         }
         Iterable<Entity> entities = move(movements, false);
-        if(entities==null)return;
+        if(entities==null)return null;
         for(Entity e : entities){
             Location l = e.getLocation();
             l.setYaw(l.getYaw()+90*amount);
@@ -329,59 +547,45 @@ public class Craft{
                     break;
             }
         }
+        return movements;
     }
     private void move(){
-        if(disabled){
-            notifyPilot("Craft is disabled!");
-            return;
-        }
-        refuel();
-        if(fuel<=0){
-            notifyPilot("Out of fuel!");
-            return;
-        }
+        if(checkDisabled())return;
+        if(!checkFuel())return;
         ArrayList<BlockMovement> movements = new ArrayList<>();
-        for(Block block : blocks){
-            movements.add(new BlockMovement(block.getLocation(), block.getRelative(cruise.x*type.moveDistance, cruise.y*type.moveDistance, cruise.z*type.moveDistance).getLocation()));
+        for(Block block : getMovableBlocks()){
+            MovementDetails movement = getMovementDetails();
+            movements.add(new BlockMovement(block.getLocation(), block.getRelative(cruise.x*movement.horizDist, cruise.y*movement.vertDist, cruise.z*movement.horizDist).getLocation()));
         }
         move(movements, false);
     }
     private void move(BlockFace face, int distance){
-        if(disabled){
-            notifyPilot("Craft is disabled!");
-            return;
-        }
-        refuel();
-        if(fuel<=0){
-            notifyPilot("Out of fuel!");
-            return;
-        }
+        if(checkDisabled())return;
+        if(!checkFuel())return;
         ArrayList<BlockMovement> movements = new ArrayList<>();
-        for(Block block : blocks){
+        for(Block block : getMovableBlocks()){
             Block newBlock = block;
             for(int i = 0; i<distance; i++)newBlock = newBlock.getRelative(face);
             movements.add(new BlockMovement(block.getLocation(), newBlock.getLocation()));
         }
         move(movements, false);
     }
-    private void move(int x, int y, int z){
-        if(disabled){
-            notifyPilot("Craft is disabled!");
-            return;
-        }
-        refuel();
-        if(fuel<=0){
-            notifyPilot("Out of fuel!");
-            return;
+    private boolean move(int x, int y, int z, boolean voluntary){
+        if(voluntary){
+            if(checkDisabled())return false;
+            if(!checkFuel())return false;
         }
         ArrayList<BlockMovement> movements = new ArrayList<>();
-        for(Block block : blocks){
+        for(Block block : getMovableBlocks()){
             movements.add(new BlockMovement(block.getLocation(), block.getRelative(x,y,z).getLocation()));
         }
-        move(movements, false);
+        return move(movements, false)!=null;
     }
     private Iterable<Entity> move(Collection<BlockMovement> movements, boolean force){
         if(blocks.isEmpty())return null;
+        boolean underwaterMove = isUnderwater(false)&&((type.dive!=null&&canDive)||(type.dive!=null&&type.flight!=null&&canFly&&!canDive));
+        int waterLevel = 0;
+        if(underwaterMove)waterLevel = getWaterLevel();
         for(Block block : blocks){
             if(block.getType()==Material.AIR){
                 criticalError(41693, "AIR BLOCKS FOUND ON SHIP!");
@@ -391,17 +595,16 @@ public class Craft{
         HashMap<Entity, Location> entityMovements = new HashMap<>();
         for(Entity entity : world.getNearbyEntities(getBoundingBox().expand(BlockFace.UP, 2))){
             Block b = world.getBlockAt(entity.getLocation());
-            if(b.getType()==Material.AIR||b.getType()==Material.CAVE_AIR){
-                b = b.getRelative(BlockFace.DOWN);
-            }
-            if(b.getType()==Material.AIR||b.getType()==Material.CAVE_AIR){
-                b = b.getRelative(BlockFace.DOWN);
+            for(int i = 0; i<2; i++){
+                if(b.getType()==Material.AIR||b.getType()==Material.CAVE_AIR||b.getType()==Material.WATER||b.getType()==Material.BUBBLE_COLUMN){
+                    b = b.getRelative(BlockFace.DOWN);
+                }
             }
             if(blocks.contains(b)){
                 for(BlockMovement m : movements){
                     if(m.from.equals(b.getLocation())){
-                        Location diff = m.to.clone().subtract(m.from);
-                        entityMovements.put(entity, rotate(entity.getLocation().add(diff), m.to.add(.5, 0, .5), m.rotation));
+                        Location diff = m.to.clone().subtract(m.from.clone());
+                        entityMovements.put(entity, rotate(entity.getLocation().clone().add(diff), m.to.clone().add(.5, 0, .5), m.rotation));
                         break;
                     }
                 }
@@ -410,8 +613,15 @@ public class Craft{
         if(!force){
             for(BlockMovement movement : movements){
                 Block newLocation = world.getBlockAt(movement.to);
-                if(!(blocks.contains(newLocation)||newLocation.getType()==Material.AIR||newLocation.getType()==Material.CAVE_AIR)){
-                    notifyPilot("Craft obstructed by "+newLocation.getType().toString()+"! ("+newLocation.getX()+","+newLocation.getY()+","+newLocation.getZ()+")");
+                if(!world.getBlockAt(movement.from).getChunk().isLoaded()||!newLocation.getChunk().isLoaded()){
+                    notifyPilots("Ship not loaded! ("+newLocation.getX()+","+newLocation.getY()+","+newLocation.getZ()+") Stopping...");
+                    playSound(getPilots(), newLocation.getLocation(), Sound.ENTITY_WITHER_AMBIENT, .5f);
+                    cruise = Direction.NONE;
+                    return null;
+                }
+                if(!(blocks.contains(newLocation)||newLocation.getType()==Material.AIR||newLocation.getType()==Material.CAVE_AIR||(underwaterMove&&(newLocation.getType()==Material.WATER||newLocation.getType()==Material.BUBBLE_COLUMN)))){
+                    notifyPilots("Craft obstructed by "+newLocation.getType().toString()+"! ("+newLocation.getX()+","+newLocation.getY()+","+newLocation.getZ()+")");
+                    playSound(getPilots(), newLocation.getLocation(), Sound.BLOCK_ANVIL_LAND, .5f);
                     return null;
                 }
             }
@@ -419,7 +629,7 @@ public class Craft{
         }
         ArrayList<BlockChange> changes = new ArrayList<>();
         ArrayList<Block> newBlocks = new ArrayList<>();
-        for(BlockMovement movement : movements){
+        for(BlockMovement movement : movements){ 
             Block movesFrom = world.getBlockAt(movement.from);
             Block movesTo = world.getBlockAt(movement.to);
             if(movesFrom.getType()==Material.AIR){
@@ -431,7 +641,15 @@ public class Craft{
         }
         for(Block block : blocks){
             if(newBlocks.contains(block))continue;
-            changes.add(new BlockChange(block, Material.AIR, null, null));
+            if(underwaterMove){
+                if(block.getY()>waterLevel){
+                    changes.add(new BlockChange(block, Material.AIR, null, null));
+                }else{
+                    changes.add(new BlockChange(block, Material.WATER, null, null));
+                }
+            }else{
+                changes.add(new BlockChange(block, Material.AIR, null, null));
+            }
         }
         Collections.sort(changes);
         int created = 0;
@@ -439,6 +657,8 @@ public class Craft{
         for(BlockChange change : changes){
             if(change.type==Material.AIR&&change.block.getType()!=Material.AIR)destroyed++;
             if(change.type!=Material.AIR&&change.block.getType()==Material.AIR)created++;
+            if(change.type==Material.WATER&&change.block.getType()!=Material.WATER)destroyed++;
+            if(change.type!=Material.WATER&&change.block.getType()==Material.WATER)created++;
         }
         if(created-destroyed!=0){
             criticalError(81037, "NET CHANGE IS NOT EQUAL TO 0!"); 
@@ -458,16 +678,47 @@ public class Craft{
                 change.change();
             }
         }
+        for(BlockMovement movement : movements){
+            movement.move1(this);
+        }
+        for(BlockMovement movement : movements){
+            movement.move2(this);
+        }
         moving = false;
         blocks.clear();
         blocks.addAll(newBlocks);
+        if(underwaterMove){
+            Set<Block> outsideBlocks = new HashSet<>();
+            Set<Block> outerHull = new HashSet<>();
+            Set<Block> innerShip = new HashSet<>();
+            scanHull(outsideBlocks, outerHull, innerShip);
+            for(Block b : outerHull){
+                if(b.getBlockData() instanceof Waterlogged){
+                    Waterlogged l = (Waterlogged) b.getBlockData();
+                    l.setWaterlogged(b.getY()<=waterLevel);
+                    b.setBlockData(l);
+                }
+            }
+            innerShip.removeAll(blocks);
+            for(Block b : innerShip){
+                if(b.getType()==Material.WATER||b.getType()==Material.BUBBLE_COLUMN)b.setType(Material.AIR);
+                if(b.getBlockData() instanceof Waterlogged){
+                    Waterlogged l = (Waterlogged) b.getBlockData();
+                    l.setWaterlogged(false);
+                    b.setBlockData(l);
+                }
+            }
+        }
         calculateBoundingBox();
         for(Entity e : entityMovements.keySet()){
             e.teleport(entityMovements.get(e), PlayerTeleportEvent.TeleportCause.PLUGIN);
         }
-        if(pilot.getLocation().distance(getOrigin())>1000){
-            actionbar("Ship moved to ("+getOrigin().getBlockX()+", "+getOrigin().getBlockY()+", "+getOrigin().getBlockZ()+")");
+        for(Player player : getPilots()){
+            if(player.getLocation().distance(getOrigin())>500){
+                actionbar(player, "Ship moved to ("+getOrigin().getBlockX()+", "+getOrigin().getBlockY()+", "+getOrigin().getBlockZ()+")");
+            }
         }
+        updateSigns();
         return entityMovements.keySet();
     }
     private Location getOrigin(){
@@ -492,11 +743,18 @@ public class Craft{
         }
         bbox =  new BoundingBox(x1, y1, z1, x2, y2, z2);
     }
-    public void removeBlock(Block b){
-        if(moving)return;
-        updateHull(blocks.remove(b)?1:0);
+    public boolean removeBlock(Player player, Block b, boolean damage){
+        if(moving)return false;
+        if(damage)setMode(COMBAT);
+        else setMode(CONSTRUCTION);
+        if(updateHull(player, blocks.remove(b)?1:0, damage, b.getLocation())){
+            return true;
+        }else{
+            blocks.add(b);
+            return false;
+        }
     }
-    public void updateHull(int damage){
+    public boolean updateHull(Player player, int damage, boolean damaged, Location l){
         for(Iterator<Block> it = blocks.iterator(); it.hasNext();){
             Block block = it.next();
             if(type.bannedBlocks.contains(block.getType())){
@@ -504,101 +762,195 @@ public class Craft{
                 damage++;
             }
         }
-        ChatColor color = damage==1?ChatColor.YELLOW:ChatColor.RED;
-        if(damage>0)actionbar(color+"Craft took "+damage+" damage!");
+        if(damage>0){
+            damageReport += damage;
+            damageReportTimer = 0;
+        }
         if(blocks.size()<type.minSize){
-            startSinking();
-        }else if(blocks.size()-100<type.minSize){
-            if(damage>0)actionbar(color+"Craft minimum size: "+blocks.size()+"/"+type.minSize);
-        }
-        for(ArrayList<Material> materials : type.requiredRatios.keySet()){
-            float requiredRatio = type.requiredRatios.get(materials);
-            int amount = plugin.getBlocks(blocks, materials);
-            float actualRatio = amount/(float)blocks.size();
-            if(actualRatio<requiredRatio){
-                startSinking();
-            }else if((amount-100)/(float)blocks.size()<requiredRatio){
-                if(damage>0)actionbar(color+"Blocks: ("+materials.get(0).toString()+" or similar) "+Math.round(actualRatio*10000)/100f+"%>"+Math.round(requiredRatio*10000)/100f+"%");
+            if(damaged)startSinking();
+            else{
+                notifyBlockChange(player, "Craft too small!");
+                return false;
             }
         }
-        for(ArrayList<Material> material : type.bannedRatios.keySet()){
-            float ratio = type.bannedRatios.get(material);
-            int amount = plugin.getBlocks(blocks, material);
-            float actual = amount/(float)blocks.size();
-            if(actual>ratio){
-                notifyPilot(ChatColor.RED+"Warning:"+ChatColor.RESET+" This craft now has too many blocks: "+material.toString()+"! ("+Math.round(actual*10000)/100f+"%>"+Math.round(ratio*10000)/100f+"%)");
-            }else if((amount+10)/(float)blocks.size()>ratio){
-                if(damage>0)actionbar(color+"Block limit: ("+material.get(0).toString()+" or similar) "+Math.round(actual*10000)/100f+"%>"+Math.round(ratio*10000)/100f+"%");
+        if(type.flight!=null){
+            boolean fly = true;
+            for(ArrayList<Material> materials : type.flight.requiredRatios.keySet()){
+                float requiredRatio = type.flight.requiredRatios.get(materials);
+                int amount = movecraft.getBlocks(blocks, materials);
+                float actualRatio = amount/(float)blocks.size();
+                if(actualRatio<requiredRatio){
+                    fly = false;
+                    if(!damaged){
+                        notifyBlockChange(player, "Not enough flight blocks: "+materials.get(0).toString()+" or similar! ("+percent(actualRatio,2)+"<"+percent(requiredRatio,2)+")");
+                        if(canFly)return false;
+                    }
+                }
+            }
+            for(ArrayList<Material> materials : type.flight.requiredBlocks.keySet()){
+                int required = type.flight.requiredBlocks.get(materials);
+                int actual = movecraft.getBlocks(blocks, materials);
+                if(actual<required){
+                    fly = false;
+                    if(!damaged){
+                        notifyBlockChange(player, "Not enough flight blocks: "+materials.get(0).toString()+" or similar! ("+actual+"<"+required+")");
+                        if(canFly)return false;
+                    }
+                }
+            }
+            canFly = fly;
+        }
+        if(type.dive!=null){
+            boolean dive = true;
+            for(ArrayList<Material> materials : type.dive.requiredRatios.keySet()){
+                float requiredRatio = type.dive.requiredRatios.get(materials);
+                int amount = movecraft.getBlocks(blocks, materials);
+                float actualRatio = amount/(float)blocks.size();
+                if(actualRatio<requiredRatio){
+                    dive = false;
+                    if(!damaged){
+                        notifyBlockChange(player, "Not enough dive blocks: "+materials.get(0).toString()+" or similar! ("+percent(actualRatio,2)+"<"+percent(requiredRatio,2)+")");
+                        if(canDive)return false;
+                    }
+                }
+            }
+            for(ArrayList<Material> materials : type.dive.requiredBlocks.keySet()){
+                int required = type.dive.requiredBlocks.get(materials);
+                int actual = movecraft.getBlocks(blocks, materials);
+                if(actual<required){
+                    dive = false;
+                    if(!damaged){
+                        notifyBlockChange(player, "Not enough dive blocks: "+materials.get(0).toString()+" or similar! ("+actual+"<"+required+")");
+                        if(canDive)return false;
+                    }
+                }
+            }
+            canDive = dive;
+        }
+        if(damaged){
+            for(ArrayList<Material> material : type.bannedRatios.keySet()){
+                float ratio = type.bannedRatios.get(material);
+                int amount = movecraft.getBlocks(blocks, material);
+                float actual = amount/(float)blocks.size();
+                if(actual>ratio){
+                    notifyBlockChange(player, "Too many blocks: "+material.toString()+"! ("+percent(actual,2)+">"+percent(ratio,2)+")");
+                    return false;
+                }
             }
         }
-        if(type.engines.isEmpty())disabled = false;
-        else{
-            float actualRatio = plugin.getBlocks(blocks, type.engines)/(float)blocks.size();
-            disabled = actualRatio<type.enginePercent;
+        updateDisabled();
+        if(!damaged){
+            playSound(player, l, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, .95f);
+        }else{
+            playSound(player, l, Sound.ENTITY_GENERIC_EXPLODE, 2);
         }
         calculateBoundingBox();
+        updateSigns();
+        return true;
     }
-    public void addBlock(Block block){
+    public void playSound(Player player, Location location, Sound sound, float pitch){
+        if(player==null)return;
+        if(location==null)location = player.getLocation();
+        player.playSound(location, sound, SoundCategory.MASTER, 100, pitch);
+    }
+    public void playSound(Iterable<Player> players, Location location, Sound sound, float pitch){
+        for(Player p : players)playSound(p, location, sound, pitch);
+    }
+    public boolean addBlock(Block block, boolean force){
+        return addBlock(null, block, force);
+    }
+    public boolean addBlock(Player player, Block block, boolean force){
         if(moving){
-            actionbar(ChatColor.RED+"Cannot add block during a move!");
-            return;
+            return false;
         }
-        if(type.bannedBlocks.contains(block.getType()))return;
+        setMode(CONSTRUCTION);
+        if(type.bannedBlocks.contains(block.getType())){
+            notifyBlockChange(player, block.getType()+" is not allowed on crafts!");
+            return false;
+        }
         ArrayList<Block> craft = new ArrayList<>(blocks);
         craft.add(block);
         if(craft.size()>type.maxSize){
-            notifyPilot("Too many blocks! ("+craft.size()+">"+type.maxSize+")");
-            actionbar(ChatColor.RED+"Failed to add block.");
-            return;
-        }else if(craft.size()+10>type.maxSize){
-            actionbar(ChatColor.YELLOW+"Craft size: "+craft.size()+"/"+type.maxSize);
+            notifyBlockChange(player, "Craft too large!");
+            return false;
         }
-        for(ArrayList<Material> materials : type.requiredRatios.keySet()){
-            float requiredRatio = type.requiredRatios.get(materials);
-            int amount = plugin.getBlocks(craft, materials);
-            float actualRatio = amount/(float)craft.size();
-            if(actualRatio<requiredRatio){
-                notifyPilot("Not enough blocks: "+materials.get(0).toString()+" or similar! ("+Math.round(actualRatio*10000)/100f+"%>"+Math.round(requiredRatio*10000)/100f+"%)");
-                actionbar(ChatColor.RED+"Failed to add block.");
-                return;
-            }else if((amount-10)/(float)craft.size()<requiredRatio){
-                actionbar(ChatColor.YELLOW+"Blocks: ("+materials.get(0).toString()+" or similar) "+Math.round(actualRatio*10000)/100f+"%>"+Math.round(requiredRatio*10000)/100f+"%");
+        if(type.flight!=null){
+            boolean fly = true;
+            for(ArrayList<Material> materials : type.flight.requiredRatios.keySet()){
+                float requiredRatio = type.flight.requiredRatios.get(materials);
+                int amount = movecraft.getBlocks(craft, materials);
+                float actualRatio = amount/(float)craft.size();
+                if(actualRatio<requiredRatio){
+                    fly = false;
+                    notifyBlockChange(player, "Not enough flight blocks: "+materials.get(0).toString()+" or similar! ("+percent(actualRatio,2)+"<"+percent(requiredRatio,2)+")");
+                    if(canFly)return false;
+                }
             }
+            for(ArrayList<Material> materials : type.flight.requiredBlocks.keySet()){
+                int required = type.flight.requiredBlocks.get(materials);
+                int actual = movecraft.getBlocks(craft, materials);
+                if(actual<required){
+                    fly = false;
+                    notifyBlockChange(player, "Not enough flight blocks: "+materials.get(0).toString()+" or similar! ("+actual+"<"+required+")");
+                    if(canFly)return false;
+                }
+            }
+            canFly = fly;
+        }
+        if(type.dive!=null){
+            boolean dive = true;
+            for(ArrayList<Material> materials : type.dive.requiredRatios.keySet()){
+                float requiredRatio = type.dive.requiredRatios.get(materials);
+                int amount = movecraft.getBlocks(craft, materials);
+                float actualRatio = amount/(float)craft.size();
+                if(actualRatio<requiredRatio){
+                    dive = false;
+                    notifyBlockChange(player, "Not enough dive blocks: "+materials.get(0).toString()+" or similar! ("+percent(actualRatio,2)+"<"+percent(requiredRatio,2)+")");
+                    if(canDive)return false;
+                }
+            }
+            for(ArrayList<Material> materials : type.dive.requiredBlocks.keySet()){
+                int required = type.dive.requiredBlocks.get(materials);
+                int actual = movecraft.getBlocks(craft, materials);
+                if(actual<required){
+                    dive = false;
+                    notifyBlockChange(player, "Not enough dive blocks: "+materials.get(0).toString()+" or similar! ("+actual+"<"+required+")");
+                    if(canDive)return false;
+                }
+            }
+            canDive = dive;
         }
         for(ArrayList<Material> material : type.bannedRatios.keySet()){
             float ratio = type.bannedRatios.get(material);
-            int amount = plugin.getBlocks(craft, material);
+            int amount = movecraft.getBlocks(craft, material);
             float actual = amount/(float)craft.size();
             if(actual>ratio){
-                notifyPilot("Too many blocks: "+material.toString()+"! ("+Math.round(actual*10000)/100f+"%>"+Math.round(ratio*10000)/100f+"%)");
-                actionbar(ChatColor.RED+"Failed to add block.");
-                return;
-            }else if((amount+10)/(float)craft.size()>ratio){
-                actionbar(ChatColor.YELLOW+"Block limit: ("+material.get(0).toString()+" or similar) "+Math.round(actual*10000)/100f+"%>"+Math.round(ratio*10000)/100f+"%");
+                notifyBlockChange(player, "Too many blocks: "+material.toString()+"! ("+percent(actual,2)+">"+percent(ratio,2)+")");
+                return false;
             }
         }
         for(ArrayList<Material> material : type.limitedBlocks.keySet()){
             int limit = type.limitedBlocks.get(material);
-            int actual = plugin.getBlocks(craft, material);
+            int actual = movecraft.getBlocks(craft, material);
             if(actual>limit){
-                notifyPilot("Too many blocks: "+material.get(0).toString()+"! ("+actual+">"+limit+")");
-                actionbar(ChatColor.RED+"Failed to add block.");
-                return;
-            }else if(actual+10>limit){
-                actionbar(ChatColor.YELLOW+"Block limit: ("+material.get(0).toString()+" or similar) "+actual+"/"+limit);
+                notifyBlockChange(player, "Too many blocks: "+material.get(0).toString()+"! ("+actual+">"+limit+")");
+                return false;
             }
         }
-        actionbar(ChatColor.GREEN+"Successfully added block!");
+        playSound(player, block.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f);
         blocks.add(block);
+        updateDisabled();
         calculateBoundingBox();
+        updateSigns();
+        return true;
     }
     private Location rotate(Location location, Location origin){
-        location = location.subtract(origin);
+        location.subtract(origin);
         double x = -location.getZ();
         double z = location.getX();
         location.setX(x);
         location.setZ(z);
-        location = location.add(origin);
+        location.add(origin);
         return location;
     }
     private Location rotate(Location location, Location origin, int amount){
@@ -618,9 +970,9 @@ public class Craft{
         rotate(i);
     }
     private void startSinking(){
-        notifyPilot(ChatColor.RED+"This craft has taken too much damage and is now SINKING!");
-        plugin.crafts.remove(this);
-        plugin.sinking.add(this);
+        notifyCrew(ChatColor.RED+"This craft has taken too much damage and is now SINKING!");
+        movecraft.crafts.remove(this);
+        movecraft.sinking.add(this);
         sinking = true;
         pilot = null;
     }
@@ -632,7 +984,7 @@ public class Craft{
             for(Iterator<Block> it = blocks.iterator(); it.hasNext();){
                 Block block = it.next();
                 Block down = block.getRelative(BlockFace.DOWN);
-                if(down.getType()==Material.AIR||down.getType()==Material.CAVE_AIR||down.getType()==Material.WATER||blocks.contains(down));
+                if(down.getType()==Material.AIR||down.getType()==Material.CAVE_AIR||down.getType()==Material.WATER||down.getType()==Material.BUBBLE_COLUMN||blocks.contains(down));
                 else{
                     it.remove();
                     somethingChanged = true;
@@ -640,7 +992,7 @@ public class Craft{
             }
         }while(somethingChanged);
         if(blocks.isEmpty()){
-            plugin.sinking.remove(this);
+            movecraft.sinking.remove(this);
             ticker.cancel();
             return;
         }
@@ -656,6 +1008,17 @@ public class Craft{
         for(int i = 0; i<rotation; i++)rotateBlock(data);
     }
     public static void rotateBlock(BlockData data){
+        if(data instanceof RedstoneWire){
+            RedstoneWire wire = (RedstoneWire)data;
+            Connection n = wire.getFace(BlockFace.NORTH);
+            Connection e = wire.getFace(BlockFace.EAST);
+            Connection s = wire.getFace(BlockFace.SOUTH);
+            Connection w = wire.getFace(BlockFace.WEST);
+            wire.setFace(BlockFace.NORTH, w);
+            wire.setFace(BlockFace.EAST, n);
+            wire.setFace(BlockFace.SOUTH, e);
+            wire.setFace(BlockFace.WEST, s);
+        }
         if(data instanceof Directional){
             Directional d = (Directional) data;
             switch(d.getFacing()){
@@ -784,23 +1147,54 @@ public class Craft{
             }
         }
     }
+    private PacketPlayOutChat actionbar(String text){
+        PacketPlayOutChat packet = new PacketPlayOutChat(IChatBaseComponent.ChatSerializer.a("{\"text\":\""+text+"\"}"), ChatMessageType.GAME_INFO);
+        return packet;
+    }
+    private void actionbarPilot(String text){
+        if(pilot==null)return;
+        PacketPlayOutChat packet = actionbar(text);
+        ((CraftPlayer)pilot).getHandle().playerConnection.sendPacket(packet);
+    }
+    private void actionbarPilots(String text){
+        PacketPlayOutChat packet = actionbar(text);
+        for(Player player : getPilots()){
+            ((CraftPlayer)player).getHandle().playerConnection.sendPacket(packet);
+        }
+    }
+    private void actionbarCrew(String text){
+        PacketPlayOutChat packet = actionbar(text);
+        for(Player player : getCrew()){
+            ((CraftPlayer)player).getHandle().playerConnection.sendPacket(packet);
+        }
+    }
+    private void actionbar(Player player, String text){
+        PacketPlayOutChat packet = actionbar(text);
+        ((CraftPlayer)player).getHandle().playerConnection.sendPacket(packet);
+    }
     private void notifyPilot(String message){
         if(pilot!=null)pilot.sendMessage(message);
     }
-    public void actionbar(String text){
-        if(!(pilot instanceof CraftPlayer))return;
-        PacketPlayOutChat packet = new PacketPlayOutChat(IChatBaseComponent.ChatSerializer.a("{\"text\":\""+text+"\"}"), ChatMessageType.GAME_INFO);
-        ((CraftPlayer)pilot).getHandle().playerConnection.sendPacket(packet);
+    private void notifyPilots(String message){
+        for(Player player : getPilots()){
+            player.sendMessage(message);
+        }
+    }
+    private void notifyCrew(String message){
+        for(Player player : getCrew()){
+            player.sendMessage(message);
+        }
     }
     private void refuel(){
         if(fuel>0)return;
-        for(Block block : blocks){//TODO probably a better way to do that
+        if(type.fuels.isEmpty())fuel = Integer.MAX_VALUE;
+        for(Block block : blocks){
             if(block.getType()==Material.FURNACE){
                 FurnaceInventory furnace = ((Furnace)block.getState()).getInventory();
-                for(Material m : plugin.fuels.keySet()){
+                for(Material m : type.fuels.keySet()){
                     if(furnace.contains(m)){
                         furnace.remove(new ItemStack(m));
-                        fuel+=plugin.fuels.get(m);
+                        fuel+=type.fuels.get(m);
                         return;
                     }
                 }
@@ -810,29 +1204,33 @@ public class Craft{
     private static boolean isInert(Material material){
         if(material.name().contains("_WOOL"))return true;
         if(material.name().contains("_PLANKS"))return true;
+        if(material.name().contains("GLASS")&&!material.name().contains("PANE"))return true;
         if(material.name().contains("TERRACOTTA")&&!material.name().contains("GLAZED"))return true;
         switch(material){
             case END_STONE:
             case END_STONE_BRICKS:
+            case REDSTONE_BLOCK:
                 return true;
         }
         return false;
     }
     private void criticalError(int code, String error){
         cruise = Direction.NONE;
-        notifyPilot(ChatColor.DARK_RED+"Critical error whilist moving ship:");
-        notifyPilot(ChatColor.DARK_RED+error);
-        notifyPilot(ChatColor.DARK_RED+"Your craft has been stopped to help prevent further damage.");
-        notifyPilot(ChatColor.DARK_RED+""+ChatColor.BOLD+"Error Code: "+code);
-        notifyPilot(ChatColor.DARK_RED+"Please send this code, along with as many details as possible to ThizThizzyDizzy so the problem can be fixed.");
+        notifyPilots(ChatColor.DARK_RED+"Critical error whilist moving ship:");
+        notifyPilots(ChatColor.DARK_RED+error);
+        notifyPilots(ChatColor.DARK_RED+"Your craft has been stopped to help prevent further damage.");
+        notifyPilots(ChatColor.DARK_RED+""+ChatColor.BOLD+"Error Code: "+code);
+        notifyPilots(ChatColor.DARK_RED+"Please send this code, along with as many details as possible to ThizThizzyDizzy so the problem can be fixed.");
     }
     public boolean isPilotOnBoard(){
-        Block b = world.getBlockAt(pilot.getLocation());
-        if(b.getType()==Material.AIR||b.getType()==Material.CAVE_AIR){
-            b = b.getRelative(BlockFace.DOWN);
-        }
-        if(b.getType()==Material.AIR||b.getType()==Material.CAVE_AIR){
-            b = b.getRelative(BlockFace.DOWN);
+        return isOnBoard(pilot);
+    }
+    public boolean isOnBoard(Entity entity){
+        Block b = world.getBlockAt(entity.getLocation());
+        for(int i = 0; i<2; i++){
+            if(b.getType()==Material.AIR||b.getType()==Material.CAVE_AIR||b.getType()==Material.WATER||b.getType()==Material.BUBBLE_COLUMN){
+                b = b.getRelative(BlockFace.DOWN);
+            }
         }
         if(blocks.contains(b)){
             return true;
@@ -840,9 +1238,718 @@ public class Craft{
         return false;
     }
     public void maneuver(int x, int y, int z){
-        if(maneuverTimer<type.moveTime/type.moveDistance)return;
+        if(maneuverTimer<getMovementDetails().moveTime/Math.min(getMovementDetails().horizDist, getMovementDetails().vertDist))return;
         timer = maneuverTimer = 0;
-        move(x, y, z);
+        move(x, y, z, true);
+    }
+    public void rotateSubcraft(Craft craft, Player player, Block sign, int amount, String name){
+        ArrayList<BlockMovement> movements = craft.rotateAbout(sign.getLocation(), amount);
+        for(BlockMovement m : movements){
+            blocks.remove(world.getBlockAt(m.from));
+        }
+        for(BlockMovement m : movements){
+            blocks.add(world.getBlockAt(m.to));
+        }
+        actionbarPilots("Subcraft rotated: "+ChatColor.AQUA+name);
+    }
+    private void updateSigns(){
+        ArrayList<Sign> signs = new ArrayList<>();
+        for(Block block : blocks){
+            if(Movecraft.Tags.isSign(block.getType())){
+                signs.add((Sign) block.getState());
+            }
+        }
+        for(Sign sign : signs){
+            CraftSign cs = CraftSign.getSign(sign);
+            if(cs!=null){
+                cs.update(this, sign);
+            }
+        }
+    }
+    public Set<String> getCrewNames(){
+        HashSet<String> crew = new HashSet<>();
+        crew.addAll(getPilotNames());
+        for(Block b : blocks){
+            if(Movecraft.Tags.isSign(b.getType())){
+                Sign sign = (Sign) b.getState();
+                if(sign.getLine(0).equalsIgnoreCase("Crew:")){
+                    crew.add(sign.getLine(1));
+                    crew.add(sign.getLine(2));
+                    crew.add(sign.getLine(3));
+                }
+            }
+        }
+        return crew;
+    }
+    public Set<String> getPilotNames(){
+        HashSet<String> pilots = new HashSet<>();
+        for(Block b : blocks){
+            if(Movecraft.Tags.isSign(b.getType())){
+                Sign sign = (Sign) b.getState();
+                if(sign.getLine(0).equalsIgnoreCase("Pilot:")){
+                    pilots.add(sign.getLine(1));
+                    pilots.add(sign.getLine(2));
+                    pilots.add(sign.getLine(3));
+                }
+            }
+        }
+        return pilots;
+    }
+    public ArrayList<Player> getPilots(){
+        ArrayList<Player> pilots = new ArrayList<>();
+        if(pilot!=null)pilots.add(pilot);
+        pilots.addAll(copilots);
+        return pilots;
+    }
+    public ArrayList<Player> getCrew(){
+        HashSet<Player> crew = new HashSet<>();
+        crew.addAll(getPilots());
+        for(String s : getCrewNames()){
+            for(Player p : pilot.getWorld().getPlayers()){
+                if(p.getName().equals(s)){
+                    if(isOnBoard(p))crew.add(p);
+                }
+            }
+        }
+        return new ArrayList<>(crew);
+    }
+    public boolean isCrew(Player player){
+        if(isPilot(player))return true;
+        boolean crew = true;
+        for(String s : getCrewNames()){
+            crew = false;
+            if(player.getName().equals(s))return true;
+        }
+        return crew;
+    }
+    public boolean isPilot(Player player){
+        boolean pilot = true;
+        for(String s : getPilotNames()){
+            pilot = false;
+            if(player.getName().equals(s))return true;
+        }
+        return pilot;
+    }
+    public boolean checkCrew(Player player){
+        if(player==null)return true;
+        boolean crew = isCrew(player);
+        if(!crew){
+            player.sendMessage("You are not a registered crew member on this craft!");
+        }
+        return crew;
+    }
+    public boolean checkPilot(Player player){
+        if(player==null)return true;
+        boolean pilot = isPilot(player);
+        if(!pilot){
+            player.sendMessage("You are not a registered pilot on this craft!");
+        }
+        return pilot;
+    }
+    public boolean checkCopilot(Player player){
+        if(player==null)return true;
+        if(!checkPilot(player))return false;
+        if(pilot==player||copilots.contains(player)){
+            return true;
+        }else{
+            player.sendMessage("You are not a co-pilot!");
+        }
+        return true;
+    }
+    public void addCopilot(Player player){
+        if(!copilots.contains(player))copilots.add(player);
+    }
+    /**
+     * Transfer ship to co-pilots after 5 minutes
+     */
+    public void repilot(){
+        if(copilots.isEmpty())return;
+        notifyPilot(ChatColor.DARK_RED+"Transferring ship to co-pilot "+copilots.get(0).getDisplayName());
+        pilot = copilots.remove(0);
+        notifyPilot(ChatColor.BLUE+"Transferred craft to you!");
+    }
+    /**
+     * Checks to see if the craft is disabled, and if so, notifies the pilots.
+     * @return <code>true</code> if the craft is disabled
+     */
+    private boolean checkDisabled(){
+        boolean disabled = disabledAir;
+        if(isUnderwater(true)){
+            disabled = disabledDive;
+        }else if(type.flight==null)return true;
+        if(disabled){
+            playSound(getPilots(), null, Sound.BLOCK_ANVIL_LAND, 0.4f);
+            notifyPilots("Craft is disabled!");
+        }
+        return disabled;
+    }
+    /**
+     * Checks to see if the craft has fuel, and if not, notifies the crew.
+     * @return <code>true</code> if the craft has fuel
+     */
+    private boolean checkFuel(){
+        refuel();
+        if(fuel<=0){
+            notifyCrew("Out of fuel!");
+            return false;
+        }
+        return true;
+    }
+    public void setMode(int mode){
+        if(mode>this.mode)this.mode = mode;
+        if(mode==this.mode)modeTimer = 0;
+        if(mode<this.mode){
+            switch(this.mode){
+                case CONSTRUCTION:
+                    if(modeTimer>movecraft.constructionTimeout){
+                        this.mode = mode;
+                    }
+                    break;
+                case COMBAT:
+                    if(modeTimer>movecraft.combatTimeout){
+                        this.mode = mode;
+                    }
+                    break;
+            }
+        }
+    }
+    private void notifyBlockChange(Player player, String message){
+        if(player==null)notifyCrew(message);
+        else player.sendMessage(message);
+    }
+    private void updateDisabled(){
+        disabledAir = disabledDive = false;
+        if(type.flight!=null){
+            for(ArrayList<Material> m : type.flight.requiredEngineRatios.keySet()){
+                float actual = movecraft.getBlocks(blocks, m)/(float)blocks.size();
+                float ratio = type.flight.requiredEngineRatios.get(m);
+                if(actual<ratio)disabledAir = true;
+            }
+            for(ArrayList<Material> m : type.flight.requiredEngineBlocks.keySet()){
+                int actual = movecraft.getBlocks(blocks, m);
+                int blocks = type.flight.requiredEngineBlocks.get(m);
+                if(actual<blocks)disabledAir = true;
+            }
+        }
+        if(type.dive!=null){
+            for(ArrayList<Material> m : type.dive.requiredEngineRatios.keySet()){
+                float actual = movecraft.getBlocks(blocks, m)/(float)blocks.size();
+                float ratio = type.dive.requiredEngineRatios.get(m);
+                if(actual<ratio)disabledDive = true;
+            }
+            for(ArrayList<Material> m : type.dive.requiredEngineBlocks.keySet()){
+                int actual = movecraft.getBlocks(blocks, m);
+                int blocks = type.dive.requiredEngineBlocks.get(m);
+                if(actual<blocks)disabledDive = true;
+            }
+        }
+    }
+    private String friendlyName(Material m){
+        String str = m.toString().replace("WHITE_", "");
+        return str.charAt(0)+str.substring(1).toLowerCase();
+    }
+    String undock(HashSet<Block> blocks){
+        HashSet<Block> ship = new HashSet<>(this.blocks);
+        ship.removeAll(blocks);
+        if(blocks.size()<type.minSize){
+            return "Craft too small!";
+        }
+        if(type.flight!=null){
+            for(ArrayList<Material> materials : type.flight.requiredRatios.keySet()){
+                float requiredRatio = type.flight.requiredRatios.get(materials);
+                int amount = movecraft.getBlocks(blocks, materials);
+                float actualRatio = amount/(float)blocks.size();
+                if(actualRatio<requiredRatio){
+                    return "Not enough blocks: "+materials.get(0).toString()+" or similar! ("+percent(actualRatio,2)+"<"+percent(requiredRatio,2)+")";
+                }
+            }
+            for(ArrayList<Material> materials : type.flight.requiredBlocks.keySet()){
+                int required = type.flight.requiredBlocks.get(materials);
+                int actual = movecraft.getBlocks(blocks, materials);
+                if(actual<required){
+                    return "Not enough blocks: "+materials.get(0).toString()+" or similar! ("+actual+"<"+required+")";
+                }
+            }
+        }
+        if(type.dive!=null){
+            for(ArrayList<Material> materials : type.dive.requiredRatios.keySet()){
+                float requiredRatio = type.dive.requiredRatios.get(materials);
+                int amount = movecraft.getBlocks(blocks, materials);
+                float actualRatio = amount/(float)blocks.size();
+                if(actualRatio<requiredRatio){
+                    return "Not enough blocks: "+materials.get(0).toString()+" or similar! ("+percent(actualRatio,2)+"<"+percent(requiredRatio,2)+")";
+                }
+            }
+            for(ArrayList<Material> materials : type.dive.requiredBlocks.keySet()){
+                int required = type.dive.requiredBlocks.get(materials);
+                int actual = movecraft.getBlocks(blocks, materials);
+                if(actual<required){
+                    return "Not enough blocks: "+materials.get(0).toString()+" or similar! ("+actual+"<"+required+")";
+                }
+            }
+        }
+        for(ArrayList<Material> material : type.bannedRatios.keySet()){
+            float ratio = type.bannedRatios.get(material);
+            int amount = movecraft.getBlocks(blocks, material);
+            float actual = amount/(float)blocks.size();
+            if(actual>ratio){
+                return "Too many blocks: "+material.toString()+"! ("+percent(actual,2)+">"+percent(ratio,2)+")";
+            }
+        }
+        this.blocks.removeAll(blocks);
+        updateDisabled();
+        calculateBoundingBox();
+        updateSigns();
+        return null;
+    }
+    private Collection<Block> getMovableBlocks(){
+        Set<Block> movable = new HashSet<>(blocks);
+        for(Block block : blocks){
+            for(int x = -1; x<=1; x++){
+                for(int y = -1; y<=1; y++){
+                    for(int z = -1; z<=1; z++){
+                        if(Math.abs(x)+Math.abs(y)+Math.abs(z)!=1)continue;//only 6 cardinal directions
+                        Block newblock = block.getRelative(x,y,z);
+                        Craft other = movecraft.getCraft(newblock);
+                        if(other!=null&&other!=this&&type.children.contains(other.type)){
+                            movable.addAll(other.getMovableBlocks());
+                        }
+                    }
+                }
+            }
+        }
+        return movable;
+    }
+    public void newRound(Entity entity){
+        if(entity.getType()==EntityType.PRIMED_TNT){
+            tnt.put(entity, 0d);
+        }
+        if(entity.getType()==EntityType.SMALL_FIREBALL){
+            //TODO check AA director and redirect
+        }
+    }
+    void addAADirector(Player player){
+        aaDirectors.add(player);
+        player.sendMessage("You are now directing AA on this craft");
+    }
+    void addCannonDirector(Player player){
+        cannonDirectors.add(player);
+        player.sendMessage("You are now directing the cannons on this craft");
+    }
+    private MovementDetails getMovementDetails(){
+        if(isUnderwater(true))return type.dive;
+        return type.flight;
+    }
+    private int getWaterLevel(){
+        Set<Block> outsideBlocks = new HashSet<>();
+        Set<Block> outerHull = new HashSet<>();
+        Set<Block> innerShip = new HashSet<>();
+        scanHull(outsideBlocks, outerHull, innerShip);
+        int max = 0;
+        for(Block b : outsideBlocks){
+            if(b.getType()==Material.WATER||((b.getBlockData() instanceof Waterlogged)&&((Waterlogged)b.getBlockData()).isWaterlogged()))max = Math.max(b.getY(), max);
+        }
+        return max;
+    }
+    private boolean isUnderwater(boolean truly){
+        if(type.dive==null)return false;
+        Set<Block> outsideBlocks = new HashSet<>();
+        Set<Block> outerHull = new HashSet<>();
+        Set<Block> innerShip = new HashSet<>();
+        scanHull(outsideBlocks, outerHull, innerShip);
+        for(Block b : outsideBlocks){
+            if(truly){
+                if(!getBoundingBox().contains(b.getX(),b.getY(),b.getZ()));
+            }
+            if(b.getType()==Material.WATER||((b.getBlockData() instanceof Waterlogged)&&((Waterlogged)b.getBlockData()).isWaterlogged()))return true;
+        }
+        return false;
+    }
+    private boolean isWaterConnected(Block a, Block b){
+        BlockFace face = a.getFace(b);
+        int A = isWaterConnected(a, face);
+        int B = isWaterConnected(b, face.getOppositeFace());
+        if(A+B>=3)return true;
+        if(A==0||B==0)return false;
+        boolean anw = false;
+        boolean ane = false;
+        boolean asw = false;
+        boolean ase = false;
+        boolean bnw = false;
+        boolean bne = false;
+        boolean bsw = false;
+        boolean bse = false;
+        if(a.getBlockData() instanceof Slab){
+            Slab s = (Slab) a.getBlockData();
+            anw = ane = s.getType()==Slab.Type.TOP;
+            asw = ase = s.getType()==Slab.Type.BOTTOM;
+        }
+        if(b.getBlockData() instanceof Slab){
+            Slab s = (Slab) b.getBlockData();
+            bnw = bne = s.getType()==Slab.Type.TOP;
+            bsw = bse = s.getType()==Slab.Type.BOTTOM;
+        }
+        if(a.getBlockData() instanceof Stairs){
+            Stairs s = (Stairs)a.getBlockData();
+            if(face==BlockFace.UP||face==BlockFace.DOWN){
+                switch(s.getFacing()){
+                    case NORTH:
+                        switch(s.getShape()){
+                            case INNER_LEFT:
+                                anw = ane = asw = true;
+                                break;
+                            case INNER_RIGHT:
+                                anw = ane = ase = true;
+                                break;
+                            case OUTER_LEFT:
+                                anw = true;
+                                break;
+                            case OUTER_RIGHT:
+                                ane = true;
+                                break;
+                            case STRAIGHT:
+                                anw = ane = true;
+                                break;
+                        }
+                        break;
+                    case SOUTH:
+                        switch(s.getShape()){
+                            case INNER_LEFT:
+                                asw = ase = ane = true;
+                                break;
+                            case INNER_RIGHT:
+                                anw = asw = ase = true;
+                                break;
+                            case OUTER_LEFT:
+                                ase = true;
+                                break;
+                            case OUTER_RIGHT:
+                                asw = true;
+                                break;
+                            case STRAIGHT:
+                                asw = ase = true;
+                                break;
+                        }
+                        break;
+                    case EAST:
+                        switch(s.getShape()){
+                            case INNER_LEFT:
+                                anw = ane = ase = true;
+                                break;
+                            case INNER_RIGHT:
+                                asw = ase = ane = true;
+                                break;
+                            case OUTER_LEFT:
+                                ane = true;
+                                break;
+                            case OUTER_RIGHT:
+                                ase = true;
+                                break;
+                            case STRAIGHT:
+                                ane = ase = true;
+                                break;
+                        }
+                        break;
+                    case WEST:
+                        switch(s.getShape()){
+                            case INNER_LEFT:
+                                anw = asw = ase = true;
+                                break;
+                            case INNER_RIGHT:
+                                ane = anw = asw = true;
+                                break;
+                            case OUTER_LEFT:
+                                asw = true;
+                                break;
+                            case OUTER_RIGHT:
+                                anw = true;
+                                break;
+                            case STRAIGHT:
+                                anw = asw = true;
+                                break;
+                        }
+                        break;
+                }
+            }else{
+                if(s.getHalf()==Bisected.Half.TOP){
+                    anw = ane = true;
+                }
+                if(s.getHalf()==Bisected.Half.TOP){
+                    asw = ase = true;
+                }
+                int side = 0;//0 is same, then clockwise
+                switch(face){
+                    case NORTH:
+                        side = 0;
+                        break;
+                    case EAST:
+                        side = 1;
+                        break;
+                    case SOUTH:
+                        side = 2;
+                        break;
+                    case WEST:
+                        side = 3;
+                        break;
+                }
+                switch(s.getFacing()){
+                    case NORTH:
+                        break;
+                    case EAST:
+                        side--;
+                        break;
+                    case WEST:
+                        side--;
+                        break;
+                    case SOUTH:
+                        side--;
+                        break;
+                }
+                if(side<0)side+=4;
+                switch(s.getShape()){
+                    case INNER_LEFT:
+                        if(side==1)anw=true;
+                        if(side==2)ane=true;
+                        break;
+                    case INNER_RIGHT:
+                        if(side==2)anw=true;
+                        if(side==3)ane=true;
+                        break;
+                    case OUTER_LEFT:
+                        if(side==0)anw=true;
+                        if(side==3)ane=true;
+                        break;
+                    case OUTER_RIGHT:
+                        if(side==1)anw=true;
+                        if(side==0)ane=true;
+                        break;
+                    case STRAIGHT:
+                        if(side==1)anw=true;
+                        if(side==3)ane=true;    
+                        break;
+                }
+            }
+        }
+        if((anw||bnw)&&(ane||bne)&&(asw||bsw)&&(ase||bse))return false;
+        return true;
+    }
+    private int isWaterConnected(Block b, BlockFace face){
+        switch(b.getType()){
+            case BUBBLE_COLUMN:
+            case CHEST:
+            case TRAPPED_CHEST:
+            case CONDUIT:
+            case TUBE_CORAL:
+            case TUBE_CORAL_FAN:
+            case TUBE_CORAL_WALL_FAN:
+            case BRAIN_CORAL:
+            case BRAIN_CORAL_FAN:
+            case BRAIN_CORAL_WALL_FAN:
+            case BUBBLE_CORAL:
+            case BUBBLE_CORAL_FAN:
+            case BUBBLE_CORAL_WALL_FAN:
+            case FIRE_CORAL:
+            case FIRE_CORAL_FAN:
+            case FIRE_CORAL_WALL_FAN:
+            case HORN_CORAL:
+            case HORN_CORAL_FAN:
+            case HORN_CORAL_WALL_FAN:
+            case DEAD_TUBE_CORAL:
+            case DEAD_TUBE_CORAL_FAN:
+            case DEAD_TUBE_CORAL_WALL_FAN:
+            case DEAD_BRAIN_CORAL:
+            case DEAD_BRAIN_CORAL_FAN:
+            case DEAD_BRAIN_CORAL_WALL_FAN:
+            case DEAD_BUBBLE_CORAL:
+            case DEAD_BUBBLE_CORAL_FAN:
+            case DEAD_BUBBLE_CORAL_WALL_FAN:
+            case DEAD_FIRE_CORAL:
+            case DEAD_FIRE_CORAL_FAN:
+            case DEAD_FIRE_CORAL_WALL_FAN:
+            case DEAD_HORN_CORAL:
+            case DEAD_HORN_CORAL_FAN:
+            case DEAD_HORN_CORAL_WALL_FAN:
+            case ENDER_CHEST:
+            case OAK_FENCE:
+            case BIRCH_FENCE:
+            case SPRUCE_FENCE:
+            case JUNGLE_FENCE:
+            case ACACIA_FENCE:
+            case DARK_OAK_FENCE:
+            case NETHER_BRICK_FENCE:
+            case IRON_BARS:
+            case KELP:
+            case LADDER:
+            case SEAGRASS:
+            case OAK_SIGN:
+            case OAK_WALL_SIGN:
+            case BIRCH_SIGN:
+            case BIRCH_WALL_SIGN:
+            case SPRUCE_SIGN:
+            case SPRUCE_WALL_SIGN:
+            case JUNGLE_SIGN:
+            case JUNGLE_WALL_SIGN:
+            case ACACIA_SIGN:
+            case ACACIA_WALL_SIGN:
+            case DARK_OAK_SIGN:
+            case DARK_OAK_WALL_SIGN:
+            case TALL_SEAGRASS:
+            case COBBLESTONE_WALL:
+            case MOSSY_COBBLESTONE_WALL:
+            case BRICK_WALL:
+            case PRISMARINE_WALL:
+            case RED_SANDSTONE_WALL:
+            case MOSSY_STONE_BRICK_WALL:
+            case GRANITE_WALL:
+            case STONE_BRICK_WALL:
+            case NETHER_BRICK_WALL:
+            case ANDESITE_WALL:
+            case RED_NETHER_BRICK_WALL:
+            case SANDSTONE_WALL:
+            case END_STONE_BRICK_WALL:
+            case DIORITE_WALL:
+                return 2;
+            case CAMPFIRE://insulated on the bottom only
+                if(face==BlockFace.DOWN)return 0;
+                return 2;
+            case GLASS_PANE://depends on blockstate..???
+                MultipleFacing pane = (MultipleFacing)b.getBlockData();
+                switch(face){
+                    case EAST:
+                    case WEST:
+                        if(pane.hasFace(BlockFace.NORTH)||pane.hasFace(BlockFace.SOUTH))return 2;
+                        return 0;
+                    case NORTH:
+                    case SOUTH:
+                        if(pane.hasFace(BlockFace.EAST)||pane.hasFace(BlockFace.WEST))return 2;
+                        return 0;
+                }
+                return 0;
+            case OAK_SLAB:
+            case SPRUCE_SLAB:
+            case BIRCH_SLAB:
+            case JUNGLE_SLAB:
+            case ACACIA_SLAB:
+            case DARK_OAK_SLAB:
+            case STONE_SLAB:
+            case SMOOTH_STONE_SLAB:
+            case SANDSTONE_SLAB:
+            case CUT_SANDSTONE_SLAB:
+            case PETRIFIED_OAK_SLAB:
+            case COBBLESTONE_SLAB:
+            case BRICK_SLAB:
+            case STONE_BRICK_SLAB:
+            case NETHER_BRICK_SLAB:
+            case QUARTZ_SLAB:
+            case RED_SANDSTONE_SLAB:
+            case CUT_RED_SANDSTONE_SLAB:
+            case PURPUR_SLAB:
+            case PRISMARINE_SLAB:
+            case PRISMARINE_BRICK_SLAB:
+            case DARK_PRISMARINE_SLAB:
+            case POLISHED_GRANITE_SLAB:
+            case SMOOTH_RED_SANDSTONE_SLAB:
+            case MOSSY_STONE_BRICK_SLAB:
+            case POLISHED_DIORITE_SLAB:
+            case MOSSY_COBBLESTONE_SLAB:
+            case END_STONE_BRICK_SLAB:
+            case SMOOTH_SANDSTONE_SLAB:
+            case SMOOTH_QUARTZ_SLAB:
+            case GRANITE_SLAB:
+            case ANDESITE_SLAB:
+            case RED_NETHER_BRICK_SLAB:
+            case POLISHED_ANDESITE_SLAB:
+            case DIORITE_SLAB:
+                Slab slab = (Slab)b.getBlockData();
+                if(slab.getType()==Slab.Type.DOUBLE)return 0;
+                if(face==BlockFace.UP){
+                    if(slab.getType()==Slab.Type.TOP)return 0;
+                    if(slab.getType()==Slab.Type.BOTTOM)return 2;
+                }
+                if(face==BlockFace.DOWN){
+                    if(slab.getType()==Slab.Type.BOTTOM)return 0;
+                    if(slab.getType()==Slab.Type.TOP)return 2;
+                }
+                return 1;
+            case PURPUR_STAIRS:
+            case OAK_STAIRS:
+            case COBBLESTONE_STAIRS:
+            case BRICK_STAIRS:
+            case STONE_BRICK_STAIRS:
+            case NETHER_BRICK_STAIRS:
+            case SANDSTONE_STAIRS:
+            case SPRUCE_STAIRS:
+            case BIRCH_STAIRS:
+            case JUNGLE_STAIRS:
+            case QUARTZ_STAIRS:
+            case ACACIA_STAIRS:
+            case DARK_OAK_STAIRS:
+            case PRISMARINE_STAIRS:
+            case PRISMARINE_BRICK_STAIRS:
+            case DARK_PRISMARINE_STAIRS:
+            case RED_SANDSTONE_STAIRS:
+            case POLISHED_GRANITE_STAIRS:
+            case SMOOTH_RED_SANDSTONE_STAIRS:
+            case MOSSY_STONE_BRICK_STAIRS:
+            case POLISHED_DIORITE_STAIRS:
+            case MOSSY_COBBLESTONE_STAIRS:
+            case END_STONE_BRICK_STAIRS:
+            case STONE_STAIRS:
+            case SMOOTH_SANDSTONE_STAIRS:
+            case SMOOTH_QUARTZ_STAIRS:
+            case GRANITE_STAIRS:
+            case ANDESITE_STAIRS:
+            case RED_NETHER_BRICK_STAIRS:
+            case POLISHED_ANDESITE_STAIRS:
+            case DIORITE_STAIRS:
+                Stairs stairs = (Stairs)b.getBlockData();
+                if(face==BlockFace.UP){
+                    return stairs.getHalf()==Bisected.Half.TOP?0:1;
+                }
+                if(face==BlockFace.DOWN){
+                    return stairs.getHalf()==Bisected.Half.BOTTOM?0:1;
+                }
+                if(stairs.getShape()==Stairs.Shape.OUTER_LEFT||stairs.getShape()==Stairs.Shape.OUTER_RIGHT)return 1;
+                if(stairs.getShape()==Stairs.Shape.STRAIGHT)return stairs.getFacing()==face?0:1;
+                if(stairs.getShape()==Stairs.Shape.INNER_LEFT){
+                    switch(stairs.getFacing()){
+                        case NORTH:
+                            return face==BlockFace.NORTH||face==BlockFace.WEST?0:1;
+                        case EAST:
+                            return face==BlockFace.EAST||face==BlockFace.NORTH?0:1;
+                        case SOUTH:
+                            return face==BlockFace.SOUTH||face==BlockFace.EAST?0:1;
+                        case WEST:
+                            return face==BlockFace.WEST||face==BlockFace.SOUTH?0:1;
+                    }
+                }
+                if(stairs.getShape()==Stairs.Shape.INNER_RIGHT){
+                    switch(stairs.getFacing()){
+                        case NORTH:
+                            return face==BlockFace.NORTH||face==BlockFace.EAST?0:1;
+                        case EAST:
+                            return face==BlockFace.EAST||face==BlockFace.SOUTH?0:1;
+                        case SOUTH:
+                            return face==BlockFace.SOUTH||face==BlockFace.WEST?0:1;
+                        case WEST:
+                            return face==BlockFace.WEST||face==BlockFace.NORTH?0:1;
+                    }
+                }
+                return 1;
+            case OAK_TRAPDOOR:
+            case SPRUCE_TRAPDOOR:
+            case BIRCH_TRAPDOOR:
+            case JUNGLE_TRAPDOOR:
+            case ACACIA_TRAPDOOR:
+            case DARK_OAK_TRAPDOOR:
+            case IRON_TRAPDOOR:
+                TrapDoor door = (TrapDoor)b.getBlockData();
+                if(face==BlockFace.UP&&!door.isOpen()&&door.getHalf()==Bisected.Half.TOP)return 0;
+                if(face==BlockFace.DOWN&&!door.isOpen()&&door.getHalf()==Bisected.Half.BOTTOM)return 0;
+                if(door.isOpen()&&face==door.getFacing().getOppositeFace())return 0;
+                return 2;
+        }
+        return 0;
     }
     private static class BlockChange implements Comparable<BlockChange>{
         private final Material type;
@@ -873,8 +1980,8 @@ public class Craft{
             }
             if(block.getType()!=type){
                 block.setType(type, false);
-                if(isInert(type))return;
             }
+            if(isInert(type))return;
             if(data!=null)block.setBlockData(data);
             BlockState newState = block.getState();
             if(state!=null){
@@ -1019,8 +2126,8 @@ public class Craft{
             this(from.getLocation(), to);
         }
         public BlockMovement(Location from, Location to, int rotation){
-            this.from = from;
-            this.to = to;
+            this.from = from.clone();
+            this.to = to.clone();
             this.rotation = rotation;
         }
         public BlockMovement(Block from, Block to, int rotation){
@@ -1029,5 +2136,87 @@ public class Craft{
         public BlockMovement(Block from, Location to, int rotation){
             this(from.getLocation(), to, rotation);
         }
+        public void move1(Craft parent){
+            Block block = parent.world.getBlockAt(from);
+            if(parent.blocks.contains(block))return;
+            Craft craft = parent.movecraft.getCraft(from);
+            if(parent.type.children.contains(craft.type)){
+                craft.blocks.remove(block);
+            }
+        }
+        public void move2(Craft parent){
+            Block block = parent.world.getBlockAt(from);
+            Block t = parent.world.getBlockAt(to);
+            if(parent.blocks.contains(block))return;
+            Craft craft = parent.movecraft.getCraft(from);
+            if(parent.type.children.contains(craft.type)){
+                craft.blocks.add(t);
+            }
+        }
+    }
+    public static String percent(double d, int decimals){
+        return Math.round(d*100*Math.pow(10, decimals))/Math.pow(10, decimals)+"%";
+    }
+    /**
+     * Scans the ship hull for airtightness. Feed in empty lists to get filled
+     * @param outsideBlocks All blocks that are outside of the ship within one block of its bounding box. This includes ship hull blocks that are exterior-waterloggable
+     * @param outerHull All blocks that are part of the outer hull of the ship
+     * @param innerShip All that are part of the ship's interior (including air blocks) and/or are not on the outside of the ship
+     */
+    private void scanHull(Set<Block> outsideBlocks, Set<Block> outerHull, Set<Block> innerShip){
+        Set<Block> allBlocks = new HashSet<>();
+        Set<Block> nextLayer = new HashSet<>();
+        int x1,y1,z1,x2,y2,z2;
+        x1 = y1 = z1 = Integer.MAX_VALUE;
+        x2 = y2 = z2 = Integer.MIN_VALUE;
+        for(Block block : blocks){
+            x1 = Math.min(x1, block.getX());
+            y1 = Math.min(y1, block.getY());
+            z1 = Math.min(z1, block.getZ());
+            x2 = Math.max(x2, block.getX());
+            y2 = Math.max(y2, block.getY());
+            z2 = Math.max(z2, block.getZ());
+        }
+        int bbox;
+        for(int x = x1-1; x<=x2+1; x++){
+            for(int y = y1-1; y<=y2+1; y++){
+                for(int z = z1-1; z<=z2+1; z++){
+                    allBlocks.add(world.getBlockAt(x,y,z));
+                    if(x==x1-1||y==y1-1||z==z1-1||x==x2+1||y==y2+1||z==z2+1){
+                        nextLayer.add(world.getBlockAt(x, y, z));
+                    }
+                }
+            }
+        }
+        while(!nextLayer.isEmpty()){
+            Set<Block> thisLayer = new HashSet<>(nextLayer);
+            outsideBlocks.addAll(nextLayer);
+            nextLayer.clear();
+            for(Block b : thisLayer){
+                for(int x = -1; x<=1; x++){
+                    for(int y = -1; y<=1; y++){
+                        for(int z = -1; z<=1; z++){
+                            if(Math.abs(x)+Math.abs(y)+Math.abs(z)>1)continue;
+                            Block newBlock = b.getRelative(x,y,z);
+                            if(thisLayer.contains(newBlock)||outsideBlocks.contains(newBlock)||(newBlock.getX()<x1||newBlock.getY()<y1||newBlock.getZ()<z1||newBlock.getX()>x2||newBlock.getY()>y2||newBlock.getZ()>z2)||nextLayer.contains(newBlock)){
+                                continue;
+                            }
+                            if(blocks.contains(b)||blocks.contains(newBlock)){
+                                if(isWaterConnected(b,newBlock)){
+                                    nextLayer.add(newBlock);
+                                    if(blocks.contains(b))outerHull.add(newBlock);
+                                }
+                                if(!blocks.contains(b))outerHull.add(newBlock);
+                            }else{
+                                nextLayer.add(newBlock);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        innerShip.addAll(allBlocks);
+        innerShip.removeAll(outsideBlocks);
+        innerShip.removeAll(outerHull);
     }
 }
