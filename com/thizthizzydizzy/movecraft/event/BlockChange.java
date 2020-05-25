@@ -2,9 +2,11 @@ package com.thizthizzydizzy.movecraft.event;
 import com.thizthizzydizzy.movecraft.Craft;
 import com.thizthizzydizzy.movecraft.CraftSign;
 import com.thizthizzydizzy.movecraft.Movecraft;
-import org.bukkit.Bukkit;
+import java.util.Iterator;
+import java.util.Random;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.data.Waterlogged;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -15,6 +17,7 @@ import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.block.BlockSpreadEvent;
 import org.bukkit.event.block.BlockPhysicsEvent;
 import org.bukkit.event.block.SignChangeEvent;
+import org.bukkit.event.entity.EntityExplodeEvent;
 public class BlockChange implements Listener{
     private final Movecraft movecraft;
     public BlockChange(Movecraft movecraft){
@@ -43,12 +46,7 @@ public class BlockChange implements Listener{
         return true;
     }
     public boolean placeBlock(Player player, Block block, Block against){
-        Craft craft = movecraft.getCraft(against);
-        if(craft!=null){
-            if(!craft.checkCrew(player))return false;
-            return craft.addBlock(player, block, false);
-        }
-        return true;
+        return movecraft.placeBlock(player, block, against);
     }
     @EventHandler
     public void onBlockBreak(BlockBreakEvent event){
@@ -74,7 +72,51 @@ public class BlockChange implements Listener{
     }
     @EventHandler
     public void onBlockBoom(BlockExplodeEvent event){
+        if(hasWater(event.getBlock().getRelative(-1,0,0))
+         ||hasWater(event.getBlock().getRelative(1,0,0))
+         ||hasWater(event.getBlock().getRelative(0,-1,0))
+         ||hasWater(event.getBlock().getRelative(0,1,0))
+         ||hasWater(event.getBlock().getRelative(0,0,1))
+         ||hasWater(event.getBlock().getRelative(0,0,-1))){
+            event.setCancelled(true);
+            return;
+        }
+        if(movecraft.resistances.containsKey(event.getBlock().getType())){
+            if(new Random(event.getBlock().getX() + event.getBlock().getY() + event.getBlock().getZ() + (System.currentTimeMillis() >> 12)).nextFloat()<=movecraft.resistances.get(event.getBlock().getType())){
+                event.setCancelled(true);
+                return;
+            }
+        }
         breakBlock(event.getBlock());
+    }
+    @EventHandler
+    public void onEntityBoom(EntityExplodeEvent event){
+        for (Iterator<Block> it = event.blockList().iterator(); it.hasNext();) {
+            Block b = it.next();
+            if(hasWater(b.getRelative(-1,0,0))
+                    ||hasWater(b.getRelative(1,0,0))
+                    ||hasWater(b.getRelative(0,-1,0))
+                    ||hasWater(b.getRelative(0,1,0))
+                    ||hasWater(b.getRelative(0,0,1))
+                    ||hasWater(b.getRelative(0,0,-1))){
+                it.remove();
+                continue;
+            }
+            if(movecraft.resistances.containsKey(b.getType())){
+                if(new Random(b.getX() + b.getY() + b.getZ() + (System.currentTimeMillis() >> 12)).nextFloat()<=movecraft.resistances.get(b.getType())){
+                    it.remove();
+                    continue;
+                }
+            }
+            breakBlock(b);
+        }
+    }
+    private boolean hasWater(Block b){
+        if(b.isLiquid())return true;
+        if(b.getBlockData() instanceof Waterlogged){
+            return ((Waterlogged)b.getBlockData()).isWaterlogged();
+        }
+        return false;
     }
     @EventHandler
     public void onBlockBurn(BlockBurnEvent event){

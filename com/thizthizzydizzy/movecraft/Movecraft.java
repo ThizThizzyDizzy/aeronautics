@@ -1,22 +1,10 @@
-//IMPORTANT THINGS
 //TODO Skiff launches and moving with other crafts
-    //hopefully done?
-//TODO Cannon Director ?
-//TODO AA Director ?
 //TODO /cruise, /release, /pilot, etc.
-//TODO make tnt explode when it hits something
-    //hopefully done?
 //TODO ship structural integrity bossbar, showing how close to death the ship is from before it took the first bit of damage (disappears when ship is repiloted, or after ship exits combat)
 //TODO command to customize all of this
-
-
 //TODO notify everyone with actionbar when ship is on fire
-//TODO stop ship on logoff
-//TODO move spawnpoints with ships
 //TODO status and fuel signs
-
 //TODO phantom explosions while a ship is sinking?
-//TODO let ships be repaired, moved, etc. while sinking until they hit something
 /*
     Ship health bossbar (shows minimum possible health)
         Minimum health is calculated based off of all stats
@@ -26,35 +14,89 @@
 */
 package com.thizthizzydizzy.movecraft;
 import com.thizthizzydizzy.movecraft.event.BlockChange;
+import com.thizthizzydizzy.movecraft.event.MobSpawn;
+import com.thizthizzydizzy.movecraft.event.PlayerEvent;
 import com.thizthizzydizzy.movecraft.event.PlayerInteract;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.Sign;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.type.WallSign;
-import org.bukkit.configuration.MemorySection;
+import org.bukkit.entity.EntityType;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.SmallFireball;
+import org.bukkit.entity.TNTPrimed;
 import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.Vector;
 public class Movecraft extends JavaPlugin{
     public static final String[] helm = {"\\  |  /","-       -","/  |  \\"};
     public ArrayList<Craft> sinking = new ArrayList<>();
     public static Movecraft instance;
+    public boolean debug = false;
+    public boolean corruption = false;
     private static final ArrayList<String> movements = new ArrayList<>();
     static{
         movements.add("fly");
         movements.add("dive");
     }
+    public double fireballAngleLimit;
+    public static final Set<Material> transparent = new HashSet<>();
+    static{
+        transparent.add(Material.AIR);
+        transparent.add(Material.CAVE_AIR);
+        transparent.add(Material.VOID_AIR);
+        transparent.addAll(getBlocks("glass"));
+        transparent.addAll(getBlocks("glass pane"));
+        transparent.add(Material.IRON_BARS);
+        transparent.add(Material.REDSTONE_WIRE);
+        transparent.add(Material.IRON_TRAPDOOR);
+        transparent.add(Material.OAK_TRAPDOOR);
+        transparent.add(Material.BIRCH_TRAPDOOR);
+        transparent.add(Material.SPRUCE_TRAPDOOR);
+        transparent.add(Material.JUNGLE_TRAPDOOR);
+        transparent.add(Material.DARK_OAK_TRAPDOOR);
+        transparent.add(Material.ACACIA_TRAPDOOR);
+        transparent.add(Material.LEVER);
+        transparent.add(Material.STONE_BUTTON);
+        transparent.add(Material.OAK_BUTTON);
+        transparent.add(Material.BIRCH_BUTTON);
+        transparent.add(Material.SPRUCE_BUTTON);
+        transparent.add(Material.JUNGLE_BUTTON);
+        transparent.add(Material.DARK_OAK_BUTTON);
+        transparent.add(Material.ACACIA_BUTTON);
+        transparent.addAll(getBlocks("slab"));
+        transparent.addAll(getBlocks("stairs"));
+        transparent.add(Material.OAK_SIGN);
+        transparent.add(Material.BIRCH_SIGN);
+        transparent.add(Material.SPRUCE_SIGN);
+        transparent.add(Material.JUNGLE_SIGN);
+        transparent.add(Material.DARK_OAK_SIGN);
+        transparent.add(Material.ACACIA_SIGN);
+        transparent.add(Material.OAK_WALL_SIGN);
+        transparent.add(Material.BIRCH_WALL_SIGN);
+        transparent.add(Material.SPRUCE_WALL_SIGN);
+        transparent.add(Material.JUNGLE_WALL_SIGN);
+        transparent.add(Material.DARK_OAK_WALL_SIGN);
+        transparent.add(Material.ACACIA_WALL_SIGN);
+    }
+    public int directorTargetRange;
+    public double tntAngleLimit;
     public void rotateSubcraft(CraftType type, Player player, Block sign, int amount, String name){
         Craft parent = getCraft(sign);
         Craft craft = detect(type, player, sign);
@@ -89,6 +131,40 @@ public class Movecraft extends JavaPlugin{
         for(Craft craft : crafts){
             if(craft.pilot.getUniqueId().equals(player.getUniqueId()))craft.pilot = player;
         }
+    }
+    public void launchProjectile(CraftType projectile, Player player, Block sign){
+        Craft craft = detect(projectile, player, sign);
+        if(craft==null)return;
+        debug(player, "Launching projectile");
+        if(craft.getYSize()>1){
+            player.sendMessage("Projectile too tall!\nProjectiles must be 1x1!");
+            return;
+        }
+        if(((WallSign)sign.getBlockData()).getFacing().getModX()!=0){
+            if(craft.getZSize()>1){
+                player.sendMessage("Projectile too wide!\nProjectiles must be 1x1!");
+                return;
+            }
+        }else{
+            if(craft.getXSize()>1){
+                player.sendMessage("Projectile too wide!\nProjectiles must be 1x1!");
+                return;
+            }
+        }
+        craft.fuel = projectile.fuel;
+        Direction direction = Direction.fromBlockFace(((WallSign)sign.getBlockData()).getFacing().getOppositeFace());
+        debug(player, "Launched projectile heading "+direction.toString());
+        craft.cruise(direction);
+    }
+    public void reload() {
+    }
+    public boolean placeBlock(Player player, Block block, Block against) {
+        Craft craft = getCraft(against);
+        if(craft!=null){
+            if(!craft.checkCrew(player))return false;
+            return craft.addBlock(player, block, false);
+        }
+        return true;
     }
     public static class Tags{
         public static Set<Material> signs = new HashSet<>();
@@ -135,9 +211,30 @@ public class Movecraft extends JavaPlugin{
     public ArrayList<CraftType> craftTypes = new ArrayList<>();
     public ArrayList<CraftType> subcraftTypes = new ArrayList<>();
     public ArrayList<Craft> crafts = new ArrayList<>();
+    public ArrayList<Craft> projectiles = new ArrayList<>();
     public int constructionTimeout,combatTimeout,combatPilots,combatCrew,damageTimeout;
     public boolean combatAND,combatBossbar;
     public double redThreshold,yellowThreshold,tntThreshold;
+    private int fireballLifespan;
+    public HashMap<Material, Float> resistances = new HashMap<>();
+    public HashMap<SmallFireball, Integer> fireballs = new HashMap<>();
+    public HashMap<SmallFireball, Vector> velocities = new HashMap<>();
+    public HashMap<TNTPrimed, Double> tnts = new HashMap<>();
+    public ArrayList<BlockMoveListener> listeners = new ArrayList<>();
+    public void onMove(Block from, Block to){
+        for(Craft c : crafts){
+            for(Player p : c.aaDirectors){
+                if(c.aaTargets.get(p)==from){
+                    c.aaTargets.put(p,to);
+                }
+            }
+            for(Player p : c.cannonDirectors){
+                if(c.cannonTargets.get(p)==from){
+                    c.cannonTargets.put(p,to);
+                }
+            }
+        }
+    }
     public void onEnable(){
         instance = this;
         PluginDescriptionFile pdfFile = getDescription();
@@ -146,6 +243,8 @@ public class Movecraft extends JavaPlugin{
         PluginManager pm = getServer().getPluginManager();
         pm.registerEvents(new PlayerInteract(this), this);
         pm.registerEvents(new BlockChange(this), this);
+        pm.registerEvents(new MobSpawn(this), this);
+        pm.registerEvents(new PlayerEvent(this), this);
 //</editor-fold>
         //<editor-fold defaultstate="collapsed" desc="Register Config">
         saveDefaultConfig();
@@ -158,7 +257,6 @@ public class Movecraft extends JavaPlugin{
             CraftType type = new CraftType((String)craft.get("name"));
             type.minSize = (int) craft.get("min-size");
             type.maxSize = (int) craft.get("max-size");
-            for(Object obn : craft.keySet())System.out.println(obn+" "+craft.get(obn).toString());
             if(craft.containsKey("fuels")){
             ArrayList<Object> fuels = (ArrayList<Object>)craft.get("fuels");
                 for(Object ob : fuels){
@@ -240,6 +338,26 @@ public class Movecraft extends JavaPlugin{
         yellowThreshold = getConfig().getDouble("yellow-threshold");
         redThreshold = getConfig().getDouble("red-threshold");
         tntThreshold = getConfig().getDouble("tnt-threshold");
+        fireballLifespan = getConfig().getInt("fireball-lifespan");
+        fireballAngleLimit = getConfig().getDouble("fireball-angle");
+        tntAngleLimit = getConfig().getDouble("tnt-angle");
+        directorTargetRange = getConfig().getInt("director-target-range");
+        if(getConfig().contains("block-resistance")){
+            ArrayList<Object> rs = (ArrayList<Object>)getConfig().get("block-resistance");
+            for(Object ob : rs){
+                LinkedHashMap b = (LinkedHashMap)ob;
+                Object required = b.get("resistance");
+                if(required instanceof Double){
+                    for(Material m : getBlocks((String)b.get("block"))){
+                        resistances.put(m,((Number)required).floatValue());
+                    }
+                }else{
+                    for(Material m : getBlocks((String)b.get("block"))){
+                        resistances.put(m,((Number)required).intValue()/100f);
+                    }
+                }
+            }
+        }
         for(CraftType type : craftTypes){
             for(String child : type.tempChildren){
                 for(CraftType possible : craftTypes){
@@ -254,7 +372,7 @@ public class Movecraft extends JavaPlugin{
         l = (ArrayList<Object>)getConfig().getList("subcrafts");
         for(Object o : l){
             LinkedHashMap craft = (LinkedHashMap)o;
-            CraftType type = new CraftType((String)craft.get("name"));
+            CraftType type = new CraftType((String)craft.get("name"), CraftType.SUBCRAFT);
             type.minSize = (int)craft.get("min-size");
             type.maxSize = (int)craft.get("max-size");
             if(craft.containsKey("allowed-blocks")){
@@ -285,9 +403,207 @@ public class Movecraft extends JavaPlugin{
                     }else type.limitBlock((String)b.get("block"), (int)required);
                 }
             }
+            subcraftTypes.add(type);
+        }
+        l = (ArrayList<Object>)getConfig().getList("projectiles");
+        for(Object o : l){
+            LinkedHashMap craft = (LinkedHashMap)o;
+            CraftType type = new CraftType((String)craft.get("name"), CraftType.PROJECTILE);
+            type.minSize = (int)craft.get("min-size");
+            type.maxSize = (int)craft.get("max-size");
+            for(String movement : movements){
+                if(craft.containsKey(movement)){
+                    LinkedHashMap fly = (LinkedHashMap) craft.get(movement);
+                    MovementDetails move = new MovementDetails((int)fly.get("move-time"), (int)fly.get("horiz-move-distance"), (int)fly.get("vert-move-distance"));
+                    if(fly.containsKey("required-blocks")){
+                        ArrayList<Object> requiredBlocks = (ArrayList<Object>)fly.get("required-blocks");
+                        for(Object ob : requiredBlocks){
+                            LinkedHashMap b = (LinkedHashMap)ob;
+                            Object required = b.get("required");
+                            if(required instanceof Double){
+                                move.requiredRatios.put(getBlocks((String)b.get("block")),((Number)required).floatValue());
+                            }else move.requiredBlocks.put(getBlocks((String)b.get("block")), (int)required);
+                        }
+                    }
+                    if(fly.containsKey("engines")){
+                        ArrayList<Object> engines = (ArrayList<Object>)fly.get("engines");
+                        for(Object ob : engines){
+                            LinkedHashMap b = (LinkedHashMap)ob;
+                            Object required = b.get("required");
+                            if(required instanceof Double){
+                                move.requiredEngineRatios.put(getBlocks((String)b.get("block")),((Number)required).floatValue());
+                            }else move.requiredEngineBlocks.put(getBlocks((String)b.get("block")), (int)required);
+                        }
+                    }
+                    switch(movement){
+                        case "fly":
+                            type.flight = move;
+                            break;
+                        case "dive":
+                            type.dive = move;
+                            break;
+                    }
+                }
+            }
+            if(craft.containsKey("allowed-blocks")){
+                ArrayList list = (ArrayList)craft.get("allowed-blocks");
+                ArrayList<Material> mats = new ArrayList<>();
+                for(Object obj : list){
+                    mats.addAll(getBlocks((String)obj));
+                }
+                FOR:for(Material m : Material.values()){
+                    if(m.isBlock()&&!m.isLegacy()&&!mats.contains(m)){
+                        type.banBlock(m);
+                    }
+                }
+            }
+            if(craft.containsKey("banned-blocks")){
+                ArrayList list = (ArrayList)craft.get("banned-blocks");
+                for(Object obj : list){
+                    type.banBlocks((String)obj);
+                }
+            }
+            if(craft.containsKey("limited-blocks")){
+                ArrayList<Object> limitedBlocks = (ArrayList<Object>)craft.get("limited-blocks");
+                for(Object ob : limitedBlocks){
+                    LinkedHashMap b = (LinkedHashMap)ob;
+                    Object required = b.get("required");
+                    if(required instanceof Double){
+                        type.addBannedRatio((String)b.get("block"), ((Number)required).floatValue());
+                    }else type.limitBlock((String)b.get("block"), (int)required);
+                }
+            }
+            if(craft.containsKey("move-forward"))type.moveForward = (int)craft.get("move-forward");
+            if(craft.containsKey("move-horiz"))type.moveHoriz = (int)craft.get("move-horiz");
+            if(craft.containsKey("move-vert"))type.moveVert = (int)craft.get("move-vert");
+            if(craft.containsKey("strength"))type.collisionDamage = (int)craft.get("strength");
+            if(craft.containsKey("fuel"))type.fuel = (int)craft.get("fuel");
             craftTypes.add(type);
         }
 //</editor-fold>
+        new BukkitRunnable(){
+            @Override
+            public void run(){
+                for (World w : getServer().getWorlds()) {
+                    if(w==null||w.getPlayers().isEmpty())continue;
+                    for(SmallFireball fireball : w.getEntitiesByClass(SmallFireball.class)){
+                        if(!(fireball.getShooter() instanceof LivingEntity)){
+                            if(!fireballs.containsKey(fireball)){
+                                Craft c = getNearestCraft(fireball.getLocation());
+                                if(c!=null){
+                                    Block b = c.getAATarget(fireball.getLocation(), fireball.getVelocity());
+                                    Vector targetVector = c.getAADirection(fireball.getVelocity());
+                                    if(b!=null||targetVector!=null){
+                                        debug(c.pilot, "Directing fireball!");
+                                        Vector aaVel = fireball.getVelocity();
+                                        double speed = aaVel.length();
+                                        debug(c.pilot, "Old speed: "+speed);
+                                        aaVel = aaVel.normalize();
+                                        if(b!=null)targetVector = b.getLocation().toVector().subtract(fireball.getLocation().toVector()).normalize();
+                                        if(targetVector.getX() - aaVel.getX() > fireballAngleLimit){
+                                            aaVel.setX(aaVel.getX() + fireballAngleLimit);
+                                        }else if(targetVector.getX() - aaVel.getX() < -fireballAngleLimit){
+                                            aaVel.setX(aaVel.getX() - fireballAngleLimit);
+                                        }else{
+                                            aaVel.setX(targetVector.getX());
+                                        }
+                                        if(targetVector.getY() - aaVel.getY() > fireballAngleLimit){
+                                            aaVel.setY(aaVel.getY() + fireballAngleLimit);
+                                        }else if(targetVector.getY() - aaVel.getY() < -fireballAngleLimit){
+                                            aaVel.setY(aaVel.getY() - fireballAngleLimit);
+                                        }else{
+                                            aaVel.setY(targetVector.getY());
+                                        }
+                                        if(targetVector.getZ() - aaVel.getZ() > fireballAngleLimit){
+                                            aaVel.setZ(aaVel.getZ() + fireballAngleLimit);
+                                        }else if(targetVector.getZ() - aaVel.getZ() < -fireballAngleLimit){
+                                            aaVel.setZ(aaVel.getZ() - fireballAngleLimit);
+                                        }else{
+                                            aaVel.setZ(targetVector.getZ());
+                                        }
+                                        fireball.setDirection(aaVel.normalize().multiply(fireball.getDirection().length()));
+                                    }
+                                }
+                                fireballs.put(fireball, 0);
+                                velocities.put(fireball, fireball.getVelocity());
+                            }
+                        }
+                    }
+                    for(TNTPrimed tnt : w.getEntitiesByClass(TNTPrimed.class)){
+                        if(tnts.containsKey(tnt)||tnt.getVelocity().lengthSquared()<=.35)continue;
+                        Craft c = getNearestCraft(tnt.getLocation());
+                        tnts.put(tnt, tnt.getVelocity().lengthSquared());
+                        if(c==null)continue;
+                        debug(c.pilot, "Tracking new TNT: "+tnt.getVelocity().lengthSquared());
+                        Block b = c.getCannonTarget(tnt.getLocation(), tnt.getVelocity());
+                        Vector targetVector = c.getCannonDirection(tnt.getVelocity());
+                        if(b!=null||targetVector!=null){
+                            Vector tntVel = tnt.getVelocity();
+                            double speed = tntVel.length();
+                            tntVel = tntVel.normalize();
+                            if(b!=null)targetVector = b.getLocation().toVector().subtract(tnt.getLocation().toVector()).normalize();
+                            if(targetVector.getX() - tntVel.getX() > tntAngleLimit){
+                                tntVel.setX(tntVel.getX() + tntAngleLimit);
+                            }else if(targetVector.getX() - tntVel.getX() < -tntAngleLimit){
+                                tntVel.setX(tntVel.getX() - tntAngleLimit);
+                            }else{
+                                tntVel.setX(targetVector.getX());
+                            }
+                            if(targetVector.getY() - tntVel.getY() > tntAngleLimit){
+                                tntVel.setY(tntVel.getY() + tntAngleLimit);
+                            }else if(targetVector.getY() - tntVel.getY() < -tntAngleLimit){
+                                tntVel.setY(tntVel.getY() - tntAngleLimit);
+                            }else{
+                                tntVel.setY(targetVector.getY());
+                            }
+                            if(targetVector.getZ() - tntVel.getZ() > tntAngleLimit){
+                                tntVel.setZ(tntVel.getZ() + tntAngleLimit);
+                            }else if(targetVector.getZ() - tntVel.getZ() < -tntAngleLimit){
+                                tntVel.setZ(tntVel.getZ() - tntAngleLimit);
+                            }else{
+                                tntVel.setZ(targetVector.getZ());
+                            }
+                            tntVel = tntVel.multiply(speed);
+                            tntVel.setY(tnt.getVelocity().getY());
+                            tnt.setVelocity(tntVel);
+                        }
+                    }
+                }
+                for (Iterator<TNTPrimed> it = tnts.keySet().iterator(); it.hasNext();) {
+                    TNTPrimed tnt = it.next();
+                    if(tnt.getFuseTicks()<=0){
+                        it.remove();
+                        continue;
+                    }
+                    double vel = tnt.getVelocity().lengthSquared();
+                    if(vel<tnts.get(tnt)/10&&tnts.get(tnt)>.35){
+                        tnt.setFuseTicks(0);
+                        System.out.println("Exploding TNT: "+vel+" "+tnts.get(tnt));
+                    }
+                    else{
+                        tnts.put(tnt, vel);
+                    }
+                }
+                for (Iterator it = fireballs.keySet().iterator(); it.hasNext();) {
+                    SmallFireball f = (SmallFireball)it.next();
+                    if(f.isDead()){
+                        it.remove();
+                        continue;
+                    }
+                    if(f.getDirection().length()>0.5){
+                        Vector diff = f.getVelocity().subtract(velocities.get(f));
+                        f.setVelocity(velocities.get(f).add(diff.multiply(.1)));
+                        velocities.put(f, f.getVelocity());
+                    }
+                    fireballs.put(f, fireballs.get(f)+1);
+                    if(fireballs.get(f)>fireballLifespan){
+                        f.remove();
+                        it.remove();
+                    }
+                }
+            }
+        }.runTaskTimer(this, 1, 1);
+        getCommand("movecraft").setExecutor(new CommandMovecraft(this));
         logger.log(Level.INFO, "{0} has been enabled! (Version {1}) by ThizThizzyDizzy", new Object[]{pdfFile.getName(), pdfFile.getVersion()});
     }
     public void onDisable(){
@@ -751,7 +1067,7 @@ public class Movecraft extends JavaPlugin{
         return theBlocks;
     }
     public Craft detect(CraftType type, Player player, Block sign){
-        if(!type.subcraft){
+        if(type.type==CraftType.CRAFT){
             Craft current = getCraft(player);
             if(current!=null)current.release();
         }
@@ -800,9 +1116,10 @@ public class Movecraft extends JavaPlugin{
                 return null;
             }
         }
-        if(!type.subcraft){
+        if(type.type==CraftType.CRAFT){
             for(Block block : craft){
-                if(getCraft(block)!=null){
+                Craft cr = getCraft(block);
+                if(cr!=null&&cr.type==type){
                     player.sendMessage("This craft is already piloted!");
                     return null;
                 }
@@ -830,18 +1147,21 @@ public class Movecraft extends JavaPlugin{
         }
         HashSet<Block> blocks = new HashSet<>(craft);
         Craft theCraft = new Craft(this, type, blocks, player);
-        if(!type.subcraft){
+        if(type.type!=CraftType.SUBCRAFT){
             Craft parent = getCraft(sign);
             if(parent!=null){
                 String error = parent.undock(blocks);
                 if(error!=null){
                     player.sendMessage("Cannot undock from ship: "+error);
+                    theCraft.release();
                     return null;
                 }
             }
-            crafts.add(theCraft);
+            if(type.type==CraftType.PROJECTILE){
+                projectiles.add(theCraft);
+            }else crafts.add(theCraft);
         }
-        player.sendMessage("Successfully piloted craft! Size: "+craft.size());
+        player.sendMessage("Successfully piloted craft! Size: "+blocks.size());
         return theCraft;
     }
     private HashMap<Integer, ArrayList<Block>> getBlocks(Collection<Material> bannedMaterials, Block startingBlock, int maxBlocks){
@@ -916,7 +1236,13 @@ public class Movecraft extends JavaPlugin{
     }
     public Craft getCraft(Block block){
         CRAFTS:for(Craft craft : crafts){
-            
+            for(Block b : craft.blocks){
+                if(block.equals(b)){
+                    return craft;
+                }
+            }
+        }
+        CRAFTS:for(Craft craft : projectiles){
             for(Block b : craft.blocks){
                 if(block.equals(b)){
                     return craft;
@@ -932,6 +1258,27 @@ public class Movecraft extends JavaPlugin{
             }
         }
         return null;
+    }
+    public Craft getCoCraft(Player player){
+        for(Craft craft : crafts){
+            for(Player p : craft.copilots){
+                if(p.getUniqueId().equals(player.getUniqueId())){
+                    return craft;
+                }
+            }
+        }
+        return null;
+    }
+    public Craft getNearestCraft(Location l){
+        Craft nearest = null;
+        double dist = 0;
+        for(Craft craft : crafts){
+            if(nearest==null||dist>craft.distance(l)){
+                nearest = craft;
+                dist = craft.distance(l);
+            }
+        }
+        return nearest;
     }
     public static boolean isHelm(String... lines){
         return (lines.length>=1&&lines[0].equalsIgnoreCase("[helm]"))||lines.length>=3&&lines[0].equals(helm[0])&&lines[1].equals(helm[1])&&lines[2].equals(helm[2]);
@@ -976,5 +1323,22 @@ public class Movecraft extends JavaPlugin{
             }
         }
         return Direction.NONE;
+    }
+    public void debug(Player player, String text){
+        if(!debug)return;
+        if(!text.contains("[Movecraft]"))text = "[Movecraft] - "+text;
+        getLogger().log(Level.FINEST, text);
+        if(player!=null)player.sendMessage(text);
+    }
+    public void debug(Player player, boolean critical, boolean success, String text){
+        if(!debug)return;
+        if(success)debug(player, "[Movecraft] "+(critical?ChatColor.DARK_GREEN:ChatColor.GREEN)+"O"+ChatColor.RESET+" "+text);
+        else debug(player, "[Movecraft] "+(critical?ChatColor.DARK_RED:ChatColor.RED)+"X"+ChatColor.RESET+" "+text);
+    }
+    public void addBlockMoveListener(BlockMoveListener listener){
+        listeners.add(listener);
+    }
+    public void removeBlockMoveListener(BlockMoveListener listener){
+        listeners.remove(listener);
     }
 }

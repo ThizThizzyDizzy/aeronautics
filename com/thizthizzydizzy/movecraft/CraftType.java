@@ -14,16 +14,24 @@ public class CraftType{
     public int minSize = 10;
     public int maxSize = 10000;
 //    public int minTime = 2;
-    public final boolean subcraft;
+    public final int type;
+    public static final int CRAFT = 0;
+    public static final int SUBCRAFT = 1;
+    public static final int PROJECTILE = 2;
     Set<CraftType> children = new HashSet<>();
     Set<String> tempChildren = new HashSet<>();
     public MovementDetails flight = null;
     public MovementDetails dive = null;
     public HashMap<Material, Integer> fuels = new HashMap<>();
+    public int moveForward;
+    public int moveHoriz;
+    public int moveVert;
+    public int fuel;
+    public int collisionDamage = 0;
     public CraftType(String name){
-        this(name, false);
+        this(name, CRAFT);
     }
-    public CraftType(String name, boolean subcraft){
+    public CraftType(String name, int type){
         this.name = name;
         bannedBlocks.add(Material.AIR);
         bannedBlocks.add(Material.VOID_AIR);
@@ -32,15 +40,15 @@ public class CraftType{
         bannedBlocks.add(Material.STRUCTURE_BLOCK);
         bannedBlocks.add(Material.STRUCTURE_VOID);
         bannedBlocks.add(Material.BARRIER);
-        if(!subcraft){
-            CraftType that = this;
+        if(type==CRAFT){
             CraftSign.addSign(new CraftSign(name){
                 @Override
                 public void click(Movecraft movecraft, Sign sign, PlayerInteractEvent event){
                     if(sign.getLine(0).equalsIgnoreCase(name)){
+                        movecraft.debug(event.getPlayer(), "Attempting to pilot "+name);
                         Craft craft = movecraft.getCraft(sign.getBlock());
                         if(craft!=null){
-                            if(craft.type==that){
+                            if(craft.type==CraftType.this){
                                 if(craft.pilot!=event.getPlayer()){
                                     if(craft.isPilot(event.getPlayer())){
                                         movecraft.clearCopilot(event.getPlayer());
@@ -52,7 +60,7 @@ public class CraftType{
                                     return;
                                 }
                             }else{
-                                if(!craft.type.children.contains(that)){
+                                if(!craft.type.children.contains(CraftType.this)){
                                     event.getPlayer().sendMessage("This ship is already piloted!");
                                     return;
                                 }
@@ -60,7 +68,7 @@ public class CraftType{
                         }
                         //TODO let skiffs take off (and land)
                         movecraft.clearCopilot(event.getPlayer());
-                        movecraft.detect(that, event.getPlayer(), sign.getBlock());
+                        movecraft.detect(CraftType.this, event.getPlayer(), sign.getBlock());
                     }
                 }
                 @Override
@@ -76,9 +84,40 @@ public class CraftType{
                 public boolean canRightClick(){
                     return true;
                 }
+                @Override
+                public String getTag(Sign sign){
+                    return null;
+                }
             });
         }
-        this.subcraft = subcraft;
+        if(type==PROJECTILE){
+            CraftSign.addSign(new CraftSign("[Launch"+name+"]"){
+                @Override
+                public void click(Movecraft movecraft, Sign sign, PlayerInteractEvent event){
+                    if(sign.getLine(0).equalsIgnoreCase(name)){
+                        movecraft.launchProjectile(CraftType.this, event.getPlayer(), sign.getBlock());
+                    }
+                }
+                @Override
+                public void update(Craft craft, Sign sign){
+                    sign.setLine(0, "[Launch"+name+"]");
+                    sign.update();
+                }
+                @Override
+                public boolean canLeftClick(){
+                    return false;
+                }
+                @Override
+                public boolean canRightClick(){
+                    return true;
+                }
+                @Override
+                public String getTag(Sign sign){
+                    return sign.getLine(1);
+                }
+            });
+        }
+        this.type = type;
     }
     public void banBlocks(String categoryName){
         banBlocks(Movecraft.getBlocks(categoryName));

@@ -22,6 +22,7 @@ crafts:
         - block: Redstone Block
           required: 0.01
     allowed-blocks:
+      - iron bars
       - fire
       - Wool
       - Stairs
@@ -102,6 +103,9 @@ crafts:
       - end stone brick
       - nether brick
     banned-blocks:
+      - cobblestone
+      - cobblestone stairs
+      - cobblestone slab
       - stone bricks
       - dark oak stairs
       - dark oak slab
@@ -128,6 +132,7 @@ crafts:
         - block: Redstone Block
           required: 0.01
     allowed-blocks:
+      - iron bars
       - fire
       - Wool
       - Stairs
@@ -208,6 +213,9 @@ crafts:
       - end stone brick
       - nether brick
     banned-blocks:
+      - cobblestone
+      - cobblestone stairs
+      - cobblestone slab
       - stone bricks
       - dark oak stairs
       - dark oak slab
@@ -219,6 +227,8 @@ crafts:
     children:
       - Airskiff
       - Bigairskiff
+      - Subairskiff
+      - Bigsubairskiff
     fuels:
       - item: coal
         value: 40
@@ -237,6 +247,7 @@ crafts:
         - block: Redstone Block
           required: 0.01
     allowed-blocks:
+      - iron bars
       - fire
       - Wool
       - Stairs
@@ -319,6 +330,9 @@ crafts:
       - terracotta
       - stone bricks
     banned-blocks:
+      - cobblestone
+      - cobblestone stairs
+      - cobblestone slab
       - dark oak stairs
       - dark oak slab
       - dark oak fence
@@ -329,6 +343,8 @@ crafts:
     children:
       - Airskiff
       - Bigairskiff
+      - Subairskiff
+      - Bigsubairskiff
     fuels:
       - item: coal
         value: 40
@@ -347,6 +363,7 @@ crafts:
         - block: Redstone Block
           required: 0.01
     allowed-blocks:
+      - iron bars
       - fire
       - Wool
       - Stairs
@@ -429,6 +446,9 @@ crafts:
       - terracotta
       - stone bricks
     banned-blocks:
+      - cobblestone
+      - cobblestone stairs
+      - cobblestone slab
       - dark oak stairs
       - dark oak slab
       - dark oak fence
@@ -439,6 +459,8 @@ crafts:
     children:
       - Airskiff
       - Bigairskiff
+      - Subairskiff
+      - Bigsubairskiff
     fuels:
       - item: coal
         value: 40
@@ -457,6 +479,7 @@ crafts:
         - block: Redstone Block
           required: 0.01
     allowed-blocks:
+      - iron bars
       - fire
       - Wool
       - Stairs
@@ -539,6 +562,9 @@ crafts:
       - terracotta
       - stone bricks
     banned-blocks:
+      - cobblestone
+      - cobblestone stairs
+      - cobblestone slab
       - dark oak stairs
       - dark oak slab
       - dark oak fence
@@ -549,6 +575,8 @@ crafts:
     children:
       - Airskiff
       - Bigairskiff
+      - Subairskiff
+      - Bigsubairskiff
     fuels:
       - item: coal
         value: 40
@@ -567,6 +595,7 @@ crafts:
         - block: Redstone Block
           required: 0.01
     allowed-blocks:
+      - iron bars
       - fire
       - Wool
       - Stairs
@@ -649,17 +678,270 @@ crafts:
       - terracotta
       - stone bricks
     banned-blocks:
+      - cobblestone
+      - cobblestone stairs
+      - cobblestone slab
       - dark oak stairs
       - dark oak slab
       - dark oak fence
       - dark oak planks
-  - name: TEST_SUB
+  - name: SubAirskiff
     min-size: 10
-    max-size: 2000
+    max-size: 80
+    fuels:
+      - item: coal
+        value: 40
+      - item: charcoal
+        value: 40
+      - item: coal block
+        value: 400
     fly:
-      min-height: 0
-      max-height: 64
-      move-time: 30
+      move-time: 12
+      horiz-move-distance: 2
+      vert-move-distance: 2
+      required-blocks:
+        - block: Wool
+          required: 0.5
+      engines:
+        - block: Redstone Block
+          required: 0.01
+    dive:
+      move-time: 16
+      horiz-move-distance: 1
+      vert-move-distance: 1
+      required-blocks:
+        - block: Iron block
+          required: 0.2
+      engines:
+        - block: Redstone Block
+          required: 0.01
+    allowed-blocks:
+      - iron bars
+      - fire
+      - Wool
+      - Stairs
+      - Slab
+      - planks
+      - ladder
+      - Fence
+      - chiseled stone bricks
+      - water
+      - lava
+      - dispenser
+      - note block
+      - piston
+      - tnt
+      - lever
+      - pressure plate
+      - redstone torch
+      - button
+      - trapdoor
+      - fence gate
+      - redstone lamp
+      - tripwire hook
+      - tripwire
+      - chest
+      - daylight sensor
+      - redstone block
+      - hopper
+      - dropper
+      - observer
+      - door
+      - repeater
+      - comparator
+      - redstone wire
+      - lectern
+      - bed
+      - crafting table
+      - enchanter
+      - ender chest
+      - bookshelf
+      - glass
+      - glass pane
+      - carpet
+      - loom
+      - barrel
+      - smoker
+      - blast furnace
+      - furnace
+      - cartography table
+      - fletching table
+      - grindstone
+      - smithing table
+      - stonecutter
+      - bell
+      - lantern
+      - torch
+      - glowstone
+      - end rod
+      - sea pickle
+      - wall
+      - sign
+      - player head
+      - zombie head
+      - creeper head
+      - dragon head
+      - skeleton skull
+      - wither skeleton skull
+      - lapis block
+      - gold block
+      - iron block
+      - diamond block
+      - quartz block
+      - purpur block
+      - emerald block
+      - chiseled quartz block
+      - smooth quartz
+      - obsidian
+      - end stone
+      - end stone brick
+      - nether brick
+    banned-blocks:
+      - cobblestone
+      - cobblestone stairs
+      - cobblestone slab
+      - stone bricks
+      - dark oak stairs
+      - dark oak slab
+      - dark oak fence
+      - dark oak planks
+  - name: Bigsubairskiff
+    min-size: 80
+    max-size: 450
+    fuels:
+      - item: coal
+        value: 40
+      - item: charcoal
+        value: 40
+      - item: coal block
+        value: 400
+    fly:
+      move-time: 15
+      horiz-move-distance: 2
+      vert-move-distance: 2
+      required-blocks:
+        - block: Wool
+          required: 0.5
+      engines:
+        - block: Redstone Block
+          required: 0.01
+    dive:
+      move-time: 20
+      horiz-move-distance: 1
+      vert-move-distance: 1
+      required-blocks:
+        - block: Iron block
+          required: 0.2
+      engines:
+        - block: Redstone Block
+          required: 0.01
+    allowed-blocks:
+      - iron bars
+      - fire
+      - Wool
+      - Stairs
+      - Slab
+      - planks
+      - ladder
+      - Fence
+      - chiseled stone bricks
+      - water
+      - lava
+      - dispenser
+      - note block
+      - piston
+      - tnt
+      - lever
+      - pressure plate
+      - redstone torch
+      - button
+      - trapdoor
+      - fence gate
+      - redstone lamp
+      - tripwire hook
+      - tripwire
+      - chest
+      - daylight sensor
+      - redstone block
+      - hopper
+      - dropper
+      - observer
+      - door
+      - repeater
+      - comparator
+      - redstone wire
+      - lectern
+      - bed
+      - crafting table
+      - enchanter
+      - ender chest
+      - bookshelf
+      - glass
+      - glass pane
+      - carpet
+      - loom
+      - barrel
+      - smoker
+      - blast furnace
+      - furnace
+      - cartography table
+      - fletching table
+      - grindstone
+      - smithing table
+      - stonecutter
+      - bell
+      - lantern
+      - torch
+      - glowstone
+      - end rod
+      - sea pickle
+      - wall
+      - sign
+      - player head
+      - zombie head
+      - creeper head
+      - dragon head
+      - skeleton skull
+      - wither skeleton skull
+      - lapis block
+      - gold block
+      - iron block
+      - diamond block
+      - quartz block
+      - purpur block
+      - emerald block
+      - chiseled quartz block
+      - smooth quartz
+      - obsidian
+      - end stone
+      - end stone brick
+      - nether brick
+    banned-blocks:
+      - cobblestone
+      - cobblestone stairs
+      - cobblestone slab
+      - stone bricks
+      - dark oak stairs
+      - dark oak slab
+      - dark oak fence
+      - dark oak planks
+  - name: LightSubAirship
+    min-size: 500
+    max-size: 1000
+    children:
+      - Airskiff
+      - Bigairskiff
+      - Subairskiff
+      - Bigsubairskiff
+    fuels:
+      - item: coal
+        value: 40
+      - item: charcoal
+        value: 40
+      - item: coal block
+        value: 400
+    fly:
+      move-time: 32
       horiz-move-distance: 4
       vert-move-distance: 2
       required-blocks:
@@ -669,9 +951,7 @@ crafts:
         - block: Redstone Block
           required: 0.01
     dive:
-      min-height: -64
-      max-height: 0.5
-      move-time: 40
+      move-time: 43
       horiz-move-distance: 2
       vert-move-distance: 1
       required-blocks:
@@ -681,6 +961,587 @@ crafts:
         - block: Redstone Block
           required: 0.01
     allowed-blocks:
+      - iron bars
+      - fire
+      - Wool
+      - Stairs
+      - Slab
+      - planks
+      - ladder
+      - Fence
+      - chiseled stone bricks
+      - water
+      - lava
+      - dispenser
+      - note block
+      - piston
+      - tnt
+      - lever
+      - pressure plate
+      - redstone torch
+      - button
+      - trapdoor
+      - fence gate
+      - redstone lamp
+      - tripwire hook
+      - tripwire
+      - chest
+      - daylight sensor
+      - redstone block
+      - hopper
+      - dropper
+      - observer
+      - door
+      - repeater
+      - comparator
+      - redstone wire
+      - lectern
+      - bed
+      - crafting table
+      - enchanter
+      - ender chest
+      - bookshelf
+      - glass
+      - glass pane
+      - carpet
+      - loom
+      - barrel
+      - smoker
+      - blast furnace
+      - furnace
+      - cartography table
+      - fletching table
+      - grindstone
+      - smithing table
+      - stonecutter
+      - bell
+      - lantern
+      - torch
+      - glowstone
+      - end rod
+      - sea pickle
+      - wall
+      - sign
+      - player head
+      - zombie head
+      - creeper head
+      - dragon head
+      - skeleton skull
+      - wither skeleton skull
+      - lapis block
+      - gold block
+      - iron block
+      - diamond block
+      - quartz block
+      - purpur block
+      - emerald block
+      - chiseled quartz block
+      - smooth quartz
+      - obsidian
+      - end stone
+      - end stone brick
+      - nether brick
+      - terracotta
+      - stone bricks
+    banned-blocks:
+      - cobblestone
+      - cobblestone stairs
+      - cobblestone slab
+      - dark oak stairs
+      - dark oak slab
+      - dark oak fence
+      - dark oak planks
+  - name: SubAirship
+    min-size: 1000
+    max-size: 5000
+    children:
+      - Airskiff
+      - Bigairskiff
+      - Subairskiff
+      - Bigsubairskiff
+    fuels:
+      - item: coal
+        value: 40
+      - item: charcoal
+        value: 40
+      - item: coal block
+        value: 400
+    fly:
+      move-time: 36
+      horiz-move-distance: 4
+      vert-move-distance: 2
+      required-blocks:
+        - block: Wool
+          required: 0.5
+      engines:
+        - block: Redstone Block
+          required: 0.01
+    dive:
+      move-time: 48
+      horiz-move-distance: 2
+      vert-move-distance: 1
+      required-blocks:
+        - block: Iron block
+          required: 0.2
+      engines:
+        - block: Redstone Block
+          required: 0.01
+    allowed-blocks:
+      - iron bars
+      - fire
+      - Wool
+      - Stairs
+      - Slab
+      - planks
+      - ladder
+      - Fence
+      - chiseled stone bricks
+      - water
+      - lava
+      - dispenser
+      - note block
+      - piston
+      - tnt
+      - lever
+      - pressure plate
+      - redstone torch
+      - button
+      - trapdoor
+      - fence gate
+      - redstone lamp
+      - tripwire hook
+      - tripwire
+      - chest
+      - daylight sensor
+      - redstone block
+      - hopper
+      - dropper
+      - observer
+      - door
+      - repeater
+      - comparator
+      - redstone wire
+      - lectern
+      - bed
+      - crafting table
+      - enchanter
+      - ender chest
+      - bookshelf
+      - glass
+      - glass pane
+      - carpet
+      - loom
+      - barrel
+      - smoker
+      - blast furnace
+      - furnace
+      - cartography table
+      - fletching table
+      - grindstone
+      - smithing table
+      - stonecutter
+      - bell
+      - lantern
+      - torch
+      - glowstone
+      - end rod
+      - sea pickle
+      - wall
+      - sign
+      - player head
+      - zombie head
+      - creeper head
+      - dragon head
+      - skeleton skull
+      - wither skeleton skull
+      - lapis block
+      - gold block
+      - iron block
+      - diamond block
+      - quartz block
+      - purpur block
+      - emerald block
+      - chiseled quartz block
+      - smooth quartz
+      - obsidian
+      - end stone
+      - end stone brick
+      - nether brick
+      - terracotta
+      - stone bricks
+    banned-blocks:
+      - cobblestone
+      - cobblestone stairs
+      - cobblestone slab
+      - dark oak stairs
+      - dark oak slab
+      - dark oak fence
+      - dark oak planks
+  - name: MediumSubairship
+    min-size: 5000
+    max-size: 10000
+    children:
+      - Airskiff
+      - Bigairskiff
+      - Subairskiff
+      - Bigsubairskiff
+    fuels:
+      - item: coal
+        value: 40
+      - item: charcoal
+        value: 40
+      - item: coal block
+        value: 400
+    fly:
+      move-time: 36
+      horiz-move-distance: 4
+      vert-move-distance: 2
+      required-blocks:
+        - block: Wool
+          required: 0.5
+      engines:
+        - block: Redstone Block
+          required: 0.01
+    dive:
+      move-time: 48
+      horiz-move-distance: 2
+      vert-move-distance: 1
+      required-blocks:
+        - block: Iron block
+          required: 0.2
+      engines:
+        - block: Redstone Block
+          required: 0.01
+    allowed-blocks:
+      - iron bars
+      - fire
+      - Wool
+      - Stairs
+      - Slab
+      - planks
+      - ladder
+      - Fence
+      - chiseled stone bricks
+      - water
+      - lava
+      - dispenser
+      - note block
+      - piston
+      - tnt
+      - lever
+      - pressure plate
+      - redstone torch
+      - button
+      - trapdoor
+      - fence gate
+      - redstone lamp
+      - tripwire hook
+      - tripwire
+      - chest
+      - daylight sensor
+      - redstone block
+      - hopper
+      - dropper
+      - observer
+      - door
+      - repeater
+      - comparator
+      - redstone wire
+      - lectern
+      - bed
+      - crafting table
+      - enchanter
+      - ender chest
+      - bookshelf
+      - glass
+      - glass pane
+      - carpet
+      - loom
+      - barrel
+      - smoker
+      - blast furnace
+      - furnace
+      - cartography table
+      - fletching table
+      - grindstone
+      - smithing table
+      - stonecutter
+      - bell
+      - lantern
+      - torch
+      - glowstone
+      - end rod
+      - sea pickle
+      - wall
+      - sign
+      - player head
+      - zombie head
+      - creeper head
+      - dragon head
+      - skeleton skull
+      - wither skeleton skull
+      - lapis block
+      - gold block
+      - iron block
+      - diamond block
+      - quartz block
+      - purpur block
+      - emerald block
+      - chiseled quartz block
+      - smooth quartz
+      - obsidian
+      - end stone
+      - end stone brick
+      - nether brick
+      - terracotta
+      - stone bricks
+    banned-blocks:
+      - cobblestone
+      - cobblestone stairs
+      - cobblestone slab
+      - dark oak stairs
+      - dark oak slab
+      - dark oak fence
+      - dark oak planks
+  - name: BigSubairship
+    min-size: 10000
+    max-size: 20000
+    children:
+      - Airskiff
+      - Bigairskiff
+      - Subairskiff
+      - Bigsubairskiff
+    fuels:
+      - item: coal
+        value: 40
+      - item: charcoal
+        value: 40
+      - item: coal block
+        value: 400
+    fly:
+      move-time: 40
+      horiz-move-distance: 4
+      vert-move-distance: 2
+      required-blocks:
+        - block: Wool
+          required: 0.5
+      engines:
+        - block: Redstone Block
+          required: 0.01
+    dive:
+      move-time: 53
+      horiz-move-distance: 2
+      vert-move-distance: 1
+      required-blocks:
+        - block: Iron block
+          required: 0.2
+      engines:
+        - block: Redstone Block
+          required: 0.01
+    allowed-blocks:
+      - iron bars
+      - fire
+      - Wool
+      - Stairs
+      - Slab
+      - planks
+      - ladder
+      - Fence
+      - chiseled stone bricks
+      - water
+      - lava
+      - dispenser
+      - note block
+      - piston
+      - tnt
+      - lever
+      - pressure plate
+      - redstone torch
+      - button
+      - trapdoor
+      - fence gate
+      - redstone lamp
+      - tripwire hook
+      - tripwire
+      - chest
+      - daylight sensor
+      - redstone block
+      - hopper
+      - dropper
+      - observer
+      - door
+      - repeater
+      - comparator
+      - redstone wire
+      - lectern
+      - bed
+      - crafting table
+      - enchanter
+      - ender chest
+      - bookshelf
+      - glass
+      - glass pane
+      - carpet
+      - loom
+      - barrel
+      - smoker
+      - blast furnace
+      - furnace
+      - cartography table
+      - fletching table
+      - grindstone
+      - smithing table
+      - stonecutter
+      - bell
+      - lantern
+      - torch
+      - glowstone
+      - end rod
+      - sea pickle
+      - wall
+      - sign
+      - player head
+      - zombie head
+      - creeper head
+      - dragon head
+      - skeleton skull
+      - wither skeleton skull
+      - lapis block
+      - gold block
+      - iron block
+      - diamond block
+      - quartz block
+      - purpur block
+      - emerald block
+      - chiseled quartz block
+      - smooth quartz
+      - obsidian
+      - end stone
+      - end stone brick
+      - nether brick
+      - terracotta
+      - stone bricks
+    banned-blocks:
+      - cobblestone
+      - cobblestone stairs
+      - cobblestone slab
+      - dark oak stairs
+      - dark oak slab
+      - dark oak fence
+      - dark oak planks
+  - name: CorruptedAirskiff
+    min-size: 10
+    max-size: 450
+    fly:
+      move-time: 20
+      horiz-move-distance: 2
+      vert-move-distance: 2
+      required-blocks:
+        - block: mushroom stem
+          required: 0.8
+    allowed-blocks:
+      - iron bars
+      - mushroom stem
+      - fire
+      - Wool
+      - Stairs
+      - Slab
+      - planks
+      - ladder
+      - Fence
+      - chiseled stone bricks
+      - water
+      - lava
+      - dispenser
+      - note block
+      - piston
+      - tnt
+      - lever
+      - pressure plate
+      - redstone torch
+      - button
+      - trapdoor
+      - fence gate
+      - redstone lamp
+      - tripwire hook
+      - tripwire
+      - chest
+      - daylight sensor
+      - redstone block
+      - hopper
+      - dropper
+      - observer
+      - door
+      - repeater
+      - comparator
+      - redstone wire
+      - lectern
+      - bed
+      - crafting table
+      - enchanter
+      - ender chest
+      - bookshelf
+      - glass
+      - glass pane
+      - carpet
+      - loom
+      - barrel
+      - smoker
+      - blast furnace
+      - furnace
+      - cartography table
+      - fletching table
+      - grindstone
+      - smithing table
+      - stonecutter
+      - bell
+      - lantern
+      - torch
+      - glowstone
+      - end rod
+      - sea pickle
+      - wall
+      - sign
+      - player head
+      - zombie head
+      - creeper head
+      - dragon head
+      - skeleton skull
+      - wither skeleton skull
+      - lapis block
+      - gold block
+      - iron block
+      - diamond block
+      - quartz block
+      - purpur block
+      - emerald block
+      - chiseled quartz block
+      - smooth quartz
+      - obsidian
+      - end stone
+      - end stone brick
+      - nether brick
+    banned-blocks:
+      - stone bricks
+      - dark oak stairs
+      - dark oak slab
+      - dark oak fence
+      - dark oak planks
+  - name: CorruptedAirship
+    min-size: 500
+    max-size: 20000
+    children:
+      - CorruptedAirskiff
+    fly:
+      move-time: 40
+      horiz-move-distance: 3
+      vert-move-distance: 1
+      required-blocks:
+        - block: Mushroom Stem
+          required: 0.75
+    allowed-blocks:
+      - iron bars
+      - mushroom stem
       - fire
       - Wool
       - Stairs
@@ -767,11 +1628,112 @@ crafts:
       - dark oak slab
       - dark oak fence
       - dark oak planks
+  - name: Elevator
+    min-size: 10
+    max-size: 200
+    fly:
+      move-time: 10
+      horiz-move-distance: 0
+      vert-move-distance: 1
+    allowed-blocks:
+      - iron bars
+      - mushroom stem
+      - fire
+      - Wool
+      - Stairs
+      - Slab
+      - planks
+      - ladder
+      - Fence
+      - chiseled stone bricks
+      - water
+      - lava
+      - dispenser
+      - note block
+      - piston
+      - tnt
+      - lever
+      - pressure plate
+      - redstone torch
+      - button
+      - trapdoor
+      - fence gate
+      - redstone lamp
+      - tripwire hook
+      - tripwire
+      - chest
+      - daylight sensor
+      - redstone block
+      - hopper
+      - dropper
+      - observer
+      - door
+      - repeater
+      - comparator
+      - redstone wire
+      - lectern
+      - bed
+      - crafting table
+      - enchanter
+      - ender chest
+      - bookshelf
+      - glass
+      - glass pane
+      - carpet
+      - loom
+      - barrel
+      - smoker
+      - blast furnace
+      - furnace
+      - cartography table
+      - fletching table
+      - grindstone
+      - smithing table
+      - stonecutter
+      - bell
+      - lantern
+      - torch
+      - glowstone
+      - end rod
+      - sea pickle
+      - wall
+      - sign
+      - player head
+      - zombie head
+      - creeper head
+      - dragon head
+      - skeleton skull
+      - wither skeleton skull
+      - lapis block
+      - gold block
+      - iron block
+      - diamond block
+      - quartz block
+      - purpur block
+      - emerald block
+      - chiseled quartz block
+      - smooth quartz
+      - obsidian
+      - end stone
+      - end stone brick
+      - nether brick
+      - terracotta
+      - stone bricks
+    banned-blocks:
+      - cyan terracotta
+      - gowstone
+      - dark oak stairs
+      - dark oak slab
+      - dark oak fence
+      - dark oak planks
 subcrafts:
   - name: Turret
     min-size: 2
-    max-size: 100
+    max-size: 150
     allowed-blocks:
+      - piston
+      - nether brick stairs
+      - iron bars
       - smooth stone slab
       - stone brick slab
       - end stone brick
@@ -792,6 +1754,43 @@ subcrafts:
       - glass pane
     banned-blocks:
       - stone bricks
+projectiles:
+  - name: Torpedo
+    min-size: 3
+    max-size: 5
+    allowed-blocks:
+      - coal block
+    fly:
+      move-time: 6
+      horiz-move-distance: 1
+      vert-move-distance: 1
+    dive:
+      move-time: 6
+      horiz-move-distance: 1
+      vert-move-distance: 1
+    move-forward: 1
+    move-horiz: 0
+    move-vert: 0
+    strength: 5
+    fuel: 100
+  - name: LongArm
+    min-size: 7
+    max-size: 9
+    allowed-blocks:
+      - coal block
+    fly:
+      move-time: 7
+      horiz-move-distance: 1
+      vert-move-distance: 1
+    dive:
+      move-time: 7
+      horiz-move-distance: 1
+      vert-move-distance: 1
+    move-forward: 1
+    move-horiz: 0
+    move-vert: 0
+    strength: 6
+    fuel: 150
 construction-timeout: 1200
 combat-timeout: 6000
 combat-pilots: 2
@@ -802,3 +1801,12 @@ damage-report-timeout: 20
 yellow-threshold: .1
 red-threshold: .05
 tnt-threshold: .5
+fireball-lifespan: 100
+fireball-angle: 0.5
+tnt-angle: 0.7
+director-target-range: 192
+block-resistance:
+  - block: end stone
+    resistance: 0.31
+  - block: end stone brick
+    resistance: 0.31

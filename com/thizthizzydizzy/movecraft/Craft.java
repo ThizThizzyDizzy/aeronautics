@@ -10,9 +10,12 @@ import net.minecraft.server.v1_14_R1.ChatMessageType;
 import net.minecraft.server.v1_14_R1.IChatBaseComponent;
 import net.minecraft.server.v1_14_R1.PacketPlayOutChat;
 import org.bukkit.Axis;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.FluidCollisionMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.Sound;
 import org.bukkit.SoundCategory;
 import org.bukkit.World;
@@ -50,6 +53,7 @@ import org.bukkit.block.data.type.TrapDoor;
 import org.bukkit.craftbukkit.v1_14_R1.entity.CraftPlayer;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Hanging;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TNTPrimed;
 import org.bukkit.event.player.PlayerTeleportEvent;
@@ -58,7 +62,10 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.BoundingBox;
+import org.bukkit.util.RayTraceResult;
+import org.bukkit.util.Vector;
 public class Craft{
+    private static boolean corruption;
     private final Movecraft movecraft;
     public final CraftType type;
     public final Set<Block> blocks;
@@ -87,7 +94,7 @@ public class Craft{
     private int damageReport = 0; 
     private int damageReportTimer = 0;
     private static final Set<Material> blocksThatPop = new HashSet<>();
-    private static final HashMap<Entity, Double> tnt = new HashMap<>();
+//    private static final HashMap<Entity, Double> tnt = new HashMap<>();
     private boolean canFly;
     private boolean canDive;
     static{
@@ -247,6 +254,8 @@ public class Craft{
         blocksThatPop.add(Material.CYAN_BED);
         blocksThatPop.add(Material.BROWN_BED);
     }
+    public HashMap<Player, Block> aaTargets = new HashMap<>();
+    public HashMap<Player, Block> cannonTargets = new HashMap<>();
     public Craft(Movecraft plugin, CraftType type, Set<Block> blocks, Player pilot){
         this.movecraft = plugin;
         this.type = type;
@@ -254,41 +263,20 @@ public class Craft{
         this.pilot = pilot;
         canFly = type.flight!=null;
         canDive = type.dive!=null;
-        ticker = new BukkitRunnable() {
-            @Override
-            public void run(){
-                tick();
-            }
-        }.runTaskTimer(plugin, 1, 1);
+        if(type.type!=CraftType.SUBCRAFT){
+            ticker = new BukkitRunnable() {
+                @Override
+                public void run(){
+                    tick();
+                }
+            }.runTaskTimer(plugin, 1, 1);
+        }
         world = pilot.getWorld();
         updateHull(null, 0, false, null);
     }
     public void tick(){
-        Set<Entity> remove = new HashSet<>();
-        for(Entity e : tnt.keySet()){
-            if(e.isDead()||!(e instanceof TNTPrimed)){
-                remove.add(e);
-                continue;
-            }
-            double oldVel = tnt.get(e);
-            double newVel = e.getVelocity().length();
-            if(newVel<oldVel*(1-movecraft.tntThreshold)){
-                ((TNTPrimed)e).setFuseTicks(0);
-                remove.add(e);
-                return;
-            }
-            if(isOnBoard(e))tnt.put(e, 0d);
-            else{
-                tnt.put(e, newVel);
-                if(oldVel==0){
-                    //TODO check cannon director and change TNT heading
-                }
-            }
-        }
+        if(type.type==CraftType.SUBCRAFT)return;
         int moveTime = getMovementDetails().moveTime;
-        for(Entity r : remove){
-            tnt.remove(r);
-        }
         if(sinking){
             timer++;
             if(timer>=moveTime/2){
@@ -349,6 +337,7 @@ public class Craft{
                 move();
             }
         }
+        if(type.type!=CraftType.CRAFT)return;
         String text = "";
         if(type.flight!=null){
             for(ArrayList<Material> m : type.flight.requiredRatios.keySet()){
@@ -493,6 +482,16 @@ public class Craft{
                 }
                 break;
         }
+        for(Player p : aaDirectors){
+            if(aaTargets.containsKey(p)){
+                actionbar(p, ChatColor.GREEN+"Targeted "+ChatColor.RESET+aaTargets.get(p).getX()+" "+aaTargets.get(p).getY()+" "+aaTargets.get(p).getZ());
+            }
+        }
+        for(Player p : cannonDirectors){
+            if(cannonTargets.containsKey(p)){
+                actionbar(p, ChatColor.GREEN+"Targeted "+ChatColor.RESET+cannonTargets.get(p).getX()+" "+cannonTargets.get(p).getY()+" "+cannonTargets.get(p).getZ());
+            }
+        }
     }
     public void cruise(Direction direction){
         if(cruise==direction){
@@ -510,11 +509,12 @@ public class Craft{
         ticker.cancel();
         notifyCrew("Craft released.");
         movecraft.crafts.remove(this);
+        movecraft.projectiles.remove(this);
     }
     private void rotate(int amount){
         if(checkDisabled())return;
         if(!checkFuel())return;
-        rotateAbout(getOrigin(), amount);
+        rotateAbout(getOrigin().clone().subtract(0.5,0.5,0.5), amount);
     }
     public ArrayList<BlockMovement> rotateAbout(Location origin, int amount){//rotate about the block
         while(amount>=4)amount-=4;
@@ -553,36 +553,65 @@ public class Craft{
         if(checkDisabled())return;
         if(!checkFuel())return;
         ArrayList<BlockMovement> movements = new ArrayList<>();
-        for(Block block : getMovableBlocks()){
-            MovementDetails movement = getMovementDetails();
-            movements.add(new BlockMovement(block.getLocation(), block.getRelative(cruise.x*movement.horizDist, cruise.y*movement.vertDist, cruise.z*movement.horizDist).getLocation()));
+        movecraft.debug(pilot, "Moving "+cruise.toString());
+        movecraft.debug(pilot, "Compiling BlockMovements");
+        MovementDetails movement = getMovementDetails();
+        int x = cruise.x;
+        int y = cruise.y;
+        int z = cruise.z;
+        if(type.type==CraftType.PROJECTILE){
+            movecraft.debug(pilot, "Projectile original move "+x+" "+y+" "+z);
+            movecraft.debug(pilot, "Projectile move details: fd|vert|horiz "+type.moveForward+"|"+type.moveVert+"|"+type.moveHoriz);
+            y = type.moveVert;
+            if(cruise.x!=0){//x
+                x *= type.moveForward;
+                z *= type.moveHoriz;
+            }else{//z
+                z *= type.moveForward;
+                x *= type.moveHoriz;
+            }
+            movecraft.debug(pilot, "Projectile moving "+x+" "+y+" "+z);
         }
-        move(movements, false);
+        for(Block block : getMovableBlocks()){
+            movements.add(new BlockMovement(block.getLocation(), block.getRelative(x*movement.horizDist, y*movement.vertDist, z*movement.horizDist).getLocation()));
+        }
+        movecraft.debug(pilot, "Compiled BlockMovements");
+        boolean success = move(movements, false)!=null;
+        if(type.type==CraftType.PROJECTILE&&!success){
+            move(movements, false);
+        }
     }
     private void move(BlockFace face, int distance){
+        movecraft.debug(pilot, "Moving "+face.toString());
         if(checkDisabled())return;
         if(!checkFuel())return;
         ArrayList<BlockMovement> movements = new ArrayList<>();
+        movecraft.debug(pilot, "Compiling BlockMovements");
         for(Block block : getMovableBlocks()){
             Block newBlock = block;
             for(int i = 0; i<distance; i++)newBlock = newBlock.getRelative(face);
             movements.add(new BlockMovement(block.getLocation(), newBlock.getLocation()));
         }
+        movecraft.debug(pilot, "Compiled BlockMovements");
         move(movements, false);
     }
     private boolean move(int x, int y, int z, boolean voluntary){
+        movecraft.debug(pilot, "Moving "+x+" "+y+" "+z);
         if(voluntary){
             if(checkDisabled())return false;
             if(!checkFuel())return false;
         }
         ArrayList<BlockMovement> movements = new ArrayList<>();
+        movecraft.debug(pilot, "Compiling BlockMovements");
         for(Block block : getMovableBlocks()){
             movements.add(new BlockMovement(block.getLocation(), block.getRelative(x,y,z).getLocation()));
         }
+        movecraft.debug(pilot, "Compiled BlockMovements");
         return move(movements, false)!=null;
     }
     private Iterable<Entity> move(Collection<BlockMovement> movements, boolean force){
         if(blocks.isEmpty())return null;
+        corruption = movecraft.getServer().getPluginManager().getPlugin("Corruption")!=null;
         boolean underwaterMove = isUnderwater(false)&&((type.dive!=null&&canDive)||(type.dive!=null&&type.flight!=null&&canFly&&!canDive));
         int waterLevel = 0;
         if(underwaterMove)waterLevel = getWaterLevel();
@@ -593,6 +622,8 @@ public class Craft{
             }
         }
         HashMap<Entity, Location> entityMovements = new HashMap<>();
+        HashMap<OfflinePlayer, Location> spawnMovements = new HashMap<>();
+        int entityRotation = 0;
         for(Entity entity : world.getNearbyEntities(getBoundingBox().expand(BlockFace.UP, 2))){
             Block b = world.getBlockAt(entity.getLocation());
             for(int i = 0; i<2; i++){
@@ -605,28 +636,60 @@ public class Craft{
                     if(m.from.equals(b.getLocation())){
                         Location diff = m.to.clone().subtract(m.from.clone());
                         entityMovements.put(entity, rotate(entity.getLocation().clone().add(diff), m.to.clone().add(.5, 0, .5), m.rotation));
+                        entityRotation = m.rotation;
                         break;
                     }
                 }
             }
         }
+        for(OfflinePlayer p : Bukkit.getServer().getOfflinePlayers()){
+            if(p.getBedSpawnLocation()==null)continue;
+            if(getBoundingBox().expand(BlockFace.UP, 2).contains(p.getBedSpawnLocation().toVector())){
+                Block b = world.getBlockAt(p.getBedSpawnLocation());
+                for(int i = 0; i<2; i++){
+                    if(b.getType()==Material.AIR||b.getType()==Material.CAVE_AIR||b.getType()==Material.WATER||b.getType()==Material.BUBBLE_COLUMN){
+                        b = b.getRelative(BlockFace.DOWN);
+                    }
+                }
+                if(blocks.contains(b)){
+                    for(BlockMovement m : movements){ 
+                       if(m.from.equals(b.getLocation())){
+                            Location diff = m.to.clone().subtract(m.from.clone());
+                            spawnMovements.put(p, rotate(p.getBedSpawnLocation().clone().add(diff), m.to.clone().add(.5, 0, .5), m.rotation));
+                            entityRotation = m.rotation;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
         if(!force){
+            movecraft.debug(pilot, "Checking Collisions");
             for(BlockMovement movement : movements){
                 Block newLocation = world.getBlockAt(movement.to);
                 if(!world.getBlockAt(movement.from).getChunk().isLoaded()||!newLocation.getChunk().isLoaded()){
-                    notifyPilots("Ship not loaded! ("+newLocation.getX()+","+newLocation.getY()+","+newLocation.getZ()+") Stopping...");
-                    playSound(getPilots(), newLocation.getLocation(), Sound.ENTITY_WITHER_AMBIENT, .5f);
-                    cruise = Direction.NONE;
+                    if(type.type==CraftType.PROJECTILE){
+                        startSinking();
+                    }else{
+                        notifyPilots("Ship not loaded! ("+newLocation.getX()+","+newLocation.getY()+","+newLocation.getZ()+") Stopping...");
+                        playSound(getPilots(), newLocation.getLocation(), Sound.ENTITY_WITHER_AMBIENT, .5f);
+                        cruise = Direction.NONE;
+                    }
                     return null;
                 }
-                if(!(blocks.contains(newLocation)||newLocation.getType()==Material.AIR||newLocation.getType()==Material.CAVE_AIR||(underwaterMove&&(newLocation.getType()==Material.WATER||newLocation.getType()==Material.BUBBLE_COLUMN)))){
-                    notifyPilots("Craft obstructed by "+newLocation.getType().toString()+"! ("+newLocation.getX()+","+newLocation.getY()+","+newLocation.getZ()+")");
-                    playSound(getPilots(), newLocation.getLocation(), Sound.BLOCK_ANVIL_LAND, .5f);
+                if(!(blocks.contains(newLocation)||newLocation.getType()==Material.AIR||newLocation.getType()==Material.CAVE_AIR||newLocation.getType()==Material.FIRE||(underwaterMove&&(newLocation.getType()==Material.WATER||newLocation.getType()==Material.BUBBLE_COLUMN)))){
+                    if(type.collisionDamage!=0){
+                        world.createExplosion(newLocation.getLocation().add(0.5,0.5,0.5), type.collisionDamage);
+                    }else{
+                        notifyPilots("Craft obstructed by "+newLocation.getType().toString()+"! ("+newLocation.getX()+","+newLocation.getY()+","+newLocation.getZ()+")");
+                        playSound(getPilots(), newLocation.getLocation(), Sound.BLOCK_ANVIL_LAND, .5f);
+                    }
                     return null;
                 }
             }
             fuel--;
         }
+        movecraft.debug(pilot, "Prepared Move");
         ArrayList<BlockChange> changes = new ArrayList<>();
         ArrayList<Block> newBlocks = new ArrayList<>();
         for(BlockMovement movement : movements){ 
@@ -636,7 +699,9 @@ public class Craft{
                 criticalError(39614, "AIR BLOCKS FOUND ON SHIP!");
                 return null;
             }
-            changes.add(new BlockChange(movesTo, movesFrom, movement.rotation));
+            if(movesTo.getType()!=movesFrom.getType()||!isInert(movesFrom.getType())){
+                changes.add(new BlockChange(movesTo, movesFrom, movement.rotation));
+            }
             newBlocks.add(movesTo);
         }
         for(Block block : blocks){
@@ -651,39 +716,45 @@ public class Craft{
                 changes.add(new BlockChange(block, Material.AIR, null, null));
             }
         }
+        movecraft.debug(pilot, "Compiled BlockChanges");
         Collections.sort(changes);
-        int created = 0;
-        int destroyed = 0;
-        for(BlockChange change : changes){
-            if(change.type==Material.AIR&&change.block.getType()!=Material.AIR)destroyed++;
-            if(change.type!=Material.AIR&&change.block.getType()==Material.AIR)created++;
-            if(change.type==Material.WATER&&change.block.getType()!=Material.WATER)destroyed++;
-            if(change.type!=Material.WATER&&change.block.getType()==Material.WATER)created++;
-        }
-        if(created-destroyed!=0){
-            criticalError(81037, "NET CHANGE IS NOT EQUAL TO 0!"); 
-            return null;
-        }
+        movecraft.debug(pilot, "Sorted BlockChanges");
+//        int created = 0;
+//        int destroyed = 0;
+//        for(BlockChange change : changes){
+//            if(change.type==Material.AIR&&change.block.getType()!=Material.AIR)destroyed++;
+//            if(change.type!=Material.AIR&&change.block.getType()==Material.AIR)created++;
+//            if(change.type==Material.WATER&&change.block.getType()!=Material.WATER)destroyed++;
+//            if(change.type!=Material.WATER&&change.block.getType()==Material.WATER)created++;
+//        }
+//        if(created-destroyed!=0){
+////            criticalError(81037, "NET CHANGE IS NOT EQUAL TO 0!"); 
+////            return null;
+//        }
         moving = true;
         for(Block block : blocks){
             if(blocksThatPop.contains(block.getType())){
                 block.setType(Material.AIR, false);
             }
         }
+        movecraft.debug(pilot, "Airified popping blocks");
         for(BlockChange change : changes){
             if(!blocksThatPop.contains(change.type))change.change();
         }
+        movecraft.debug(pilot, "Changed non-popping blocks");
         for(BlockChange change : changes){
             if(blocksThatPop.contains(change.type)){
                 change.change();
             }
         }
+        movecraft.debug(pilot, "Changed popping blocks");
         for(BlockMovement movement : movements){
             movement.move1(this);
         }
         for(BlockMovement movement : movements){
             movement.move2(this);
         }
+        movecraft.debug(pilot, "Moved Ship Blocks");
         moving = false;
         blocks.clear();
         blocks.addAll(newBlocks);
@@ -708,11 +779,37 @@ public class Craft{
                     b.setBlockData(l);
                 }
             }
+            movecraft.debug(pilot, "Recalculated Waterlogged blocks");
         }
         calculateBoundingBox();
         for(Entity e : entityMovements.keySet()){
             e.teleport(entityMovements.get(e), PlayerTeleportEvent.TeleportCause.PLUGIN);
+            if(e instanceof Hanging){
+                Hanging f = (Hanging) e;
+                int amount = entityRotation;
+                while(amount>0){
+                    amount--;
+                    switch(f.getFacing()){
+                        case NORTH:
+                            f.setFacingDirection(BlockFace.EAST);
+                            break;
+                        case EAST:
+                            f.setFacingDirection(BlockFace.SOUTH);
+                            break;
+                        case SOUTH:
+                            f.setFacingDirection(BlockFace.WEST);
+                            break;
+                        case WEST:
+                            f.setFacingDirection(BlockFace.UP);
+                            break;
+                    }
+                }
+            }
         }
+        for(OfflinePlayer p : spawnMovements.keySet()){
+            p.getPlayer().setBedSpawnLocation(spawnMovements.get(p));
+        }
+        movecraft.debug(pilot, "Moved Players");
         for(Player player : getPilots()){
             if(player.getLocation().distance(getOrigin())>500){
                 actionbar(player, "Ship moved to ("+getOrigin().getBlockX()+", "+getOrigin().getBlockY()+", "+getOrigin().getBlockZ()+")");
@@ -741,12 +838,13 @@ public class Craft{
             y2 = Math.max(y2, block.getY());
             z2 = Math.max(z2, block.getZ());
         }
-        bbox =  new BoundingBox(x1, y1, z1, x2, y2, z2);
+        bbox =  new BoundingBox(x1, y1, z1, x2+1, y2+1, z2+1);
     }
     public boolean removeBlock(Player player, Block b, boolean damage){
         if(moving)return false;
         if(damage)setMode(COMBAT);
         else setMode(CONSTRUCTION);
+        movecraft.debug(pilot, "Breaking block; damage: "+damage);
         if(updateHull(player, blocks.remove(b)?1:0, damage, b.getLocation())){
             return true;
         }else{
@@ -755,6 +853,7 @@ public class Craft{
         }
     }
     public boolean updateHull(Player player, int damage, boolean damaged, Location l){
+        movecraft.debug(pilot, "Updating hull; damage: "+damage+" "+damaged);
         for(Iterator<Block> it = blocks.iterator(); it.hasNext();){
             Block block = it.next();
             if(type.bannedBlocks.contains(block.getType())){
@@ -766,7 +865,7 @@ public class Craft{
             damageReport += damage;
             damageReportTimer = 0;
         }
-        if(blocks.size()<type.minSize){
+        if(blocks.size()<type.minSize&&type.type!=CraftType.PROJECTILE){
             if(damaged)startSinking();
             else{
                 notifyBlockChange(player, "Craft too small!");
@@ -972,6 +1071,7 @@ public class Craft{
     private void startSinking(){
         notifyCrew(ChatColor.RED+"This craft has taken too much damage and is now SINKING!");
         movecraft.crafts.remove(this);
+        movecraft.projectiles.remove(this);
         movecraft.sinking.add(this);
         sinking = true;
         pilot = null;
@@ -1008,6 +1108,9 @@ public class Craft{
         for(int i = 0; i<rotation; i++)rotateBlock(data);
     }
     public static void rotateBlock(BlockData data){
+        if(data.getMaterial()==Material.MUSHROOM_STEM&&corruption){
+            return;
+        }
         if(data instanceof RedstoneWire){
             RedstoneWire wire = (RedstoneWire)data;
             Connection n = wire.getFace(BlockFace.NORTH);
@@ -1173,27 +1276,61 @@ public class Craft{
         ((CraftPlayer)player).getHandle().playerConnection.sendPacket(packet);
     }
     private void notifyPilot(String message){
-        if(pilot!=null)pilot.sendMessage(message);
+        if(pilot!=null){
+            if(type.type==CraftType.PROJECTILE)movecraft.debug(pilot, message);
+            else pilot.sendMessage(message);
+        }
     }
     private void notifyPilots(String message){
         for(Player player : getPilots()){
-            player.sendMessage(message);
+            if(type.type==CraftType.PROJECTILE)movecraft.debug(player, message);
+            else player.sendMessage(message);
         }
     }
     private void notifyCrew(String message){
         for(Player player : getCrew()){
-            player.sendMessage(message);
+            if(type.type==CraftType.PROJECTILE)movecraft.debug(player, message);
+            else player.sendMessage(message);
         }
     }
     private void refuel(){
         if(fuel>0)return;
+        if(type.type==CraftType.PROJECTILE){
+            startSinking();
+            return;
+        }
         if(type.fuels.isEmpty())fuel = Integer.MAX_VALUE;
         for(Block block : blocks){
             if(block.getType()==Material.FURNACE){
                 FurnaceInventory furnace = ((Furnace)block.getState()).getInventory();
                 for(Material m : type.fuels.keySet()){
-                    if(furnace.contains(m)){
-                        furnace.remove(new ItemStack(m));
+                    if(furnace.getFuel()!=null&&furnace.getFuel().getType()==m){
+                        ItemStack s = furnace.getFuel();
+                        if(s.getAmount()==1)furnace.setFuel(new ItemStack(Material.AIR));
+                        else{
+                            s.setAmount(s.getAmount()-1);
+                            furnace.setFuel(s);
+                        }
+                        fuel+=type.fuels.get(m);
+                        return;
+                    }
+                    if(furnace.getSmelting()!=null&&furnace.getSmelting().getType()==m){
+                        ItemStack s = furnace.getSmelting();
+                        if(s.getAmount()==1)furnace.setSmelting(new ItemStack(Material.AIR));
+                        else{
+                            s.setAmount(s.getAmount()-1);
+                            furnace.setSmelting(s);
+                        }
+                        fuel+=type.fuels.get(m);
+                        return;
+                    }
+                    if(furnace.getResult()!=null&&furnace.getResult().getType()==m){
+                        ItemStack s = furnace.getResult();
+                        if(s.getAmount()==1)furnace.setResult(new ItemStack(Material.AIR));
+                        else{
+                            s.setAmount(s.getAmount()-1);
+                            furnace.setResult(s);
+                        }
                         fuel+=type.fuels.get(m);
                         return;
                     }
@@ -1244,6 +1381,7 @@ public class Craft{
     }
     public void rotateSubcraft(Craft craft, Player player, Block sign, int amount, String name){
         ArrayList<BlockMovement> movements = craft.rotateAbout(sign.getLocation(), amount);
+        if(movements==null)return;
         for(BlockMovement m : movements){
             blocks.remove(world.getBlockAt(m.from));
         }
@@ -1361,12 +1499,14 @@ public class Craft{
     }
     /**
      * Transfer ship to co-pilots after 5 minutes
+     * @return <code>true</code> if ownership was transferred
      */
-    public void repilot(){
-        if(copilots.isEmpty())return;
+    public boolean repilot(){
+        if(copilots.isEmpty())return false;
         notifyPilot(ChatColor.DARK_RED+"Transferring ship to co-pilot "+copilots.get(0).getDisplayName());
         pilot = copilots.remove(0);
         notifyPilot(ChatColor.BLUE+"Transferred craft to you!");
+        return true;
     }
     /**
      * Checks to see if the craft is disabled, and if so, notifies the pilots.
@@ -1504,35 +1644,82 @@ public class Craft{
     }
     private Collection<Block> getMovableBlocks(){
         Set<Block> movable = new HashSet<>(blocks);
-        for(Block block : blocks){
-            for(int x = -1; x<=1; x++){
-                for(int y = -1; y<=1; y++){
-                    for(int z = -1; z<=1; z++){
-                        if(Math.abs(x)+Math.abs(y)+Math.abs(z)!=1)continue;//only 6 cardinal directions
-                        Block newblock = block.getRelative(x,y,z);
-                        Craft other = movecraft.getCraft(newblock);
-                        if(other!=null&&other!=this&&type.children.contains(other.type)){
-                            movable.addAll(other.getMovableBlocks());
-                        }
-                    }
-                }
-            }
-        }
+        movecraft.debug(pilot, "Getting movable blocks");
+        //TODO moving other ships too
+//        for(Block block : blocks){
+//            for(int x = -1; x<=1; x++){
+//                for(int y = -1; y<=1; y++){
+//                    for(int z = -1; z<=1; z++){
+//                        if(Math.abs(x)+Math.abs(y)+Math.abs(z)!=1)continue;//only 6 cardinal directions
+//                        Block newblock = block.getRelative(x,y,z);
+//                        Craft other = movecraft.getCraft(newblock);
+//                        if(other!=null&&other!=this&&type.children.contains(other.type)){
+//                            movable.addAll(other.getMovableBlocks());
+//                        }
+//                    }
+//                }
+//            }
+//        }
+        movecraft.debug(pilot, "Got Movable blocks");
         return movable;
     }
     public void newRound(Entity entity){
-        if(entity.getType()==EntityType.PRIMED_TNT){
-            tnt.put(entity, 0d);
-        }
-        if(entity.getType()==EntityType.SMALL_FIREBALL){
-            //TODO check AA director and redirect
-        }
+//        if(entity.getType()==EntityType.PRIMED_TNT){
+//            tnt.put(entity, 0d);
+//        }
+//        if(entity.getType()==EntityType.SMALL_FIREBALL){
+//            movecraft.debug(pilot, "Directing AA...");
+//            Block b = getAATarget(entity.getLocation(), entity.getVelocity());
+//            Vector targetVector = getAADirection(entity.getVelocity());
+//            if(b!=null||targetVector!=null){
+//                Vector aaVel = entity.getVelocity();
+//                double speed = aaVel.length();
+//                aaVel = aaVel.normalize();
+//                if(b!=null)targetVector = b.getLocation().toVector().subtract(entity.getLocation().toVector()).normalize();
+//                if(targetVector.getX() - aaVel.getX() > movecraft.fireballAngleLimit){
+//                    aaVel.setX(aaVel.getX() + movecraft.fireballAngleLimit);
+//                }else if(targetVector.getX() - aaVel.getX() < -movecraft.fireballAngleLimit){
+//                    aaVel.setX(aaVel.getX() - movecraft.fireballAngleLimit);
+//                }else{
+//                    aaVel.setX(targetVector.getX());
+//                }
+//                if(targetVector.getY() - aaVel.getY() > movecraft.fireballAngleLimit){
+//                    aaVel.setY(aaVel.getY() + movecraft.fireballAngleLimit);
+//                }else if(targetVector.getY() - aaVel.getY() < -movecraft.fireballAngleLimit){
+//                    aaVel.setY(aaVel.getY() - movecraft.fireballAngleLimit);
+//                }else{
+//                    aaVel.setY(targetVector.getY());
+//                }
+//                if(targetVector.getZ() - aaVel.getZ() > movecraft.fireballAngleLimit){
+//                    aaVel.setZ(aaVel.getZ() + movecraft.fireballAngleLimit);
+//                }else if(targetVector.getZ() - aaVel.getZ() < -movecraft.fireballAngleLimit){
+//                    aaVel.setZ(aaVel.getZ() - movecraft.fireballAngleLimit);
+//                }else{
+//                    aaVel.setZ(targetVector.getZ());
+//                }
+//                aaVel = aaVel.multiply(speed);
+//                entity.setVelocity(aaVel);
+//                ((SmallFireball)entity).setDirection(aaVel);
+//            }
+//        }
     }
     void addAADirector(Player player){
+        if(aaDirectors.contains(player)){
+            aaDirectors.remove(player);
+            player.sendMessage("You are no longer directing AA on this craft");
+            return;
+        }
+        movecraft.clearDirector(player);
         aaDirectors.add(player);
         player.sendMessage("You are now directing AA on this craft");
     }
     void addCannonDirector(Player player){
+        if(cannonDirectors.contains(player)){
+            cannonDirectors.remove(player);
+            player.sendMessage("You are no longer directing the cannons on this craft");
+            return;
+        }
+        movecraft.clearDirector(player);
         cannonDirectors.add(player);
         player.sendMessage("You are now directing the cannons on this craft");
     }
@@ -1557,12 +1744,15 @@ public class Craft{
         Set<Block> outerHull = new HashSet<>();
         Set<Block> innerShip = new HashSet<>();
         scanHull(outsideBlocks, outerHull, innerShip);
+        boolean foundOne = false;
         for(Block b : outsideBlocks){
             if(truly){
-                if(!getBoundingBox().contains(b.getX(),b.getY(),b.getZ()));
+                if(!getBoundingBox().contains(b.getX()+.5,b.getY()+.5,b.getZ()+.5))continue;
             }
+            foundOne = true;
             if(b.getType()==Material.WATER||((b.getBlockData() instanceof Waterlogged)&&((Waterlogged)b.getBlockData()).isWaterlogged()))return true;
         }
+        if(truly&&!foundOne)return isUnderwater(false);
         return false;
     }
     private boolean isWaterConnected(Block a, Block b){
@@ -1951,6 +2141,132 @@ public class Craft{
         }
         return 0;
     }
+    public int getYSize(){
+        int y1,y2;
+        y1 = Integer.MAX_VALUE;
+        y2 = Integer.MIN_VALUE;
+        for(Block block : blocks){
+            y1 = Math.min(y1, block.getY());
+            y2 = Math.max(y2, block.getY());
+        }
+        return y2-y1+1;
+    }
+    public int getXSize(){
+        int x1,x2;
+        x1 = Integer.MAX_VALUE;
+        x2 = Integer.MIN_VALUE;
+        for(Block block : blocks){
+            x1 = Math.min(x1, block.getX());
+            x2 = Math.max(x2, block.getX());
+        }
+        return x2-x1+1;
+    }
+    public int getZSize(){
+        int z1,z2;
+        z1 = Integer.MAX_VALUE;
+        z2 = Integer.MIN_VALUE;
+        for(Block block : blocks){
+            z1 = Math.min(z1, block.getZ());
+            z2 = Math.max(z2, block.getZ());
+        }
+        return z2-z1+1;
+    }
+    public double distance(Location l){
+        return getOrigin().distance(l);
+    }
+    Block getAATarget(Location location, Vector v) {
+        if(aaDirectors.isEmpty())return null;
+        Block smallest = null;
+        double a = 0;
+        for(Player p : aaDirectors){
+            Block b = getAATarget(p);
+            if(b==null)continue;
+            double angle = v.normalize().angle(b.getLocation().toVector().subtract(location.toVector().normalize()));
+            if(smallest==null||angle<a){
+                smallest = b;
+                a = angle;
+            }
+        }
+        return smallest;
+    }
+    Block getAATarget(Player p){
+        if(aaTargets.containsKey(p))return aaTargets.get(p);
+        return getTarget(p);
+    }
+    Vector getAADirection(Vector vect){
+        if(aaDirectors.isEmpty())return null;
+        Vector smallest = null;
+        double a = 0;
+        for(Player p : aaDirectors){
+            Vector v = getDirection(p);
+            if(v==null)continue;
+            double angle = v.normalize().angle(vect.normalize());
+            if(smallest==null||angle<a){
+                smallest = v;
+                a = angle;
+            }
+        }
+        return smallest;
+    }
+    Block getCannonTarget(Location location, Vector v) {
+        if(cannonDirectors.isEmpty())return null;
+        Block smallest = null;
+        double a = 0;
+        for(Player p : cannonDirectors){
+            Block b = getCannonTarget(p);
+            if(b==null)continue;
+            double angle = v.normalize().angle(b.getLocation().toVector().subtract(location.toVector().normalize()));
+            if(smallest==null||angle<a){
+                smallest = b;
+                a = angle;
+            }
+        }
+        return smallest;
+    }
+    Block getCannonTarget(Player p){
+        if(cannonTargets.containsKey(p))return cannonTargets.get(p);
+        return getTarget(p);
+    }
+    Vector getCannonDirection(Vector vect){
+        if(cannonDirectors.isEmpty())return null;
+        Vector smallest = null;
+        double a = 0;
+        for(Player p : cannonDirectors){
+            Vector v = getDirection(p);
+            if(v==null)continue;
+            double angle = v.normalize().angle(vect.normalize());
+            if(smallest==null||angle<a){
+                smallest = v;
+                a = angle;
+            }
+        }
+        return smallest;
+    }
+    Vector getDirection(Player p){
+        if(p.getInventory().getItemInMainHand().getType()==Material.STICK||p.getInventory().getItemInOffHand().getType()==Material.STICK){
+            return p.getLocation().getDirection();
+        }
+        return null;
+    }
+    public Block getTarget(Player p){
+        if(p.getInventory().getItemInMainHand().getType()==Material.STICK||p.getInventory().getItemInOffHand().getType()==Material.STICK){
+            RayTraceResult result = p.rayTraceBlocks(movecraft.directorTargetRange, FluidCollisionMode.NEVER);
+            if(result!=null&&result.getHitBlock()!=null&&!blocks.contains(result.getHitBlock())){
+                return result.getHitBlock();
+            }
+            Block b = p.getTargetBlock(Movecraft.transparent, movecraft.directorTargetRange);
+            if(!blocks.contains(b))return b;
+        }
+        return null;
+    }
+    public void aaTarget(Player player, Block target){
+        if(target==null)aaTargets.remove(player);
+        else aaTargets.put(player, target);
+    }
+    public void cannonTarget(Player player, Block target){
+        if(target==null)cannonTargets.remove(player);
+        else cannonTargets.put(player, target);
+    }
     private static class BlockChange implements Comparable<BlockChange>{
         private final Material type;
         private final BlockData data;
@@ -2218,5 +2534,12 @@ public class Craft{
         innerShip.addAll(allBlocks);
         innerShip.removeAll(outsideBlocks);
         innerShip.removeAll(outerHull);
+    }
+    public Set<Sign> getSigns(){
+        Set<Sign> signs = new HashSet<>();
+        for(Block b : blocks){
+            if(Movecraft.Tags.isSign(b.getType()))signs.add((Sign)b.getState());
+        }
+        return signs;
     }
 }

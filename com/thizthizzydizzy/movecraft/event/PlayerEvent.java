@@ -1,5 +1,6 @@
 package com.thizthizzydizzy.movecraft.event;
 import com.thizthizzydizzy.movecraft.Craft;
+import com.thizthizzydizzy.movecraft.Direction;
 import com.thizthizzydizzy.movecraft.Movecraft;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -17,7 +18,9 @@ public class PlayerEvent implements Listener{
         movecraft.clearCopilot(player);
         Craft craft = movecraft.getCraft(player);
         if(craft!=null){
-            craft.repilot();
+            if(!craft.repilot()){
+                craft.cruise = Direction.NONE;
+            }
         }
     }
     @EventHandler
