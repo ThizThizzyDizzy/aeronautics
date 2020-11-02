@@ -6,9 +6,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
-import net.minecraft.server.v1_14_R1.ChatMessageType;
-import net.minecraft.server.v1_14_R1.IChatBaseComponent;
-import net.minecraft.server.v1_14_R1.PacketPlayOutChat;
+import java.util.UUID;
+import net.minecraft.server.v1_16_R2.ChatMessageType;
+import net.minecraft.server.v1_16_R2.IChatBaseComponent;
+import net.minecraft.server.v1_16_R2.PacketPlayOutChat;
 import org.bukkit.Axis;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -50,12 +51,10 @@ import org.bukkit.block.data.type.RedstoneWire.Connection;
 import org.bukkit.block.data.type.Slab;
 import org.bukkit.block.data.type.Stairs;
 import org.bukkit.block.data.type.TrapDoor;
-import org.bukkit.craftbukkit.v1_14_R1.entity.CraftPlayer;
+import org.bukkit.craftbukkit.v1_16_R2.entity.CraftPlayer;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Hanging;
 import org.bukkit.entity.Player;
-import org.bukkit.entity.TNTPrimed;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.FurnaceInventory;
 import org.bukkit.inventory.ItemStack;
@@ -1250,29 +1249,29 @@ public class Craft{
             }
         }
     }
-    private PacketPlayOutChat actionbar(String text){
-        PacketPlayOutChat packet = new PacketPlayOutChat(IChatBaseComponent.ChatSerializer.a("{\"text\":\""+text+"\"}"), ChatMessageType.GAME_INFO);
+    private PacketPlayOutChat actionbar(String text, UUID uid){
+        PacketPlayOutChat packet = new PacketPlayOutChat(IChatBaseComponent.ChatSerializer.a("{\"text\":\""+text+"\"}"), ChatMessageType.GAME_INFO, uid);
         return packet;
     }
     private void actionbarPilot(String text){
         if(pilot==null)return;
-        PacketPlayOutChat packet = actionbar(text);
+        PacketPlayOutChat packet = actionbar(text, pilot.getUniqueId());
         ((CraftPlayer)pilot).getHandle().playerConnection.sendPacket(packet);
     }
     private void actionbarPilots(String text){
-        PacketPlayOutChat packet = actionbar(text);
         for(Player player : getPilots()){
+            PacketPlayOutChat packet = actionbar(text, player.getUniqueId());
             ((CraftPlayer)player).getHandle().playerConnection.sendPacket(packet);
         }
     }
     private void actionbarCrew(String text){
-        PacketPlayOutChat packet = actionbar(text);
         for(Player player : getCrew()){
+            PacketPlayOutChat packet = actionbar(text, player.getUniqueId());
             ((CraftPlayer)player).getHandle().playerConnection.sendPacket(packet);
         }
     }
     private void actionbar(Player player, String text){
-        PacketPlayOutChat packet = actionbar(text);
+        PacketPlayOutChat packet = actionbar(text, player.getUniqueId());
         ((CraftPlayer)player).getHandle().playerConnection.sendPacket(packet);
     }
     private void notifyPilot(String message){
