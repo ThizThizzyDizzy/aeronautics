@@ -34,7 +34,6 @@ import org.bukkit.block.Block;
 import org.bukkit.block.Sign;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.type.WallSign;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.SmallFireball;
@@ -65,35 +64,12 @@ public class Movecraft extends JavaPlugin{
         transparent.addAll(getBlocks("glass pane"));
         transparent.add(Material.IRON_BARS);
         transparent.add(Material.REDSTONE_WIRE);
-        transparent.add(Material.IRON_TRAPDOOR);
-        transparent.add(Material.OAK_TRAPDOOR);
-        transparent.add(Material.BIRCH_TRAPDOOR);
-        transparent.add(Material.SPRUCE_TRAPDOOR);
-        transparent.add(Material.JUNGLE_TRAPDOOR);
-        transparent.add(Material.DARK_OAK_TRAPDOOR);
-        transparent.add(Material.ACACIA_TRAPDOOR);
+        transparent.addAll(getBlocks("trapdoor"));
         transparent.add(Material.LEVER);
-        transparent.add(Material.STONE_BUTTON);
-        transparent.add(Material.OAK_BUTTON);
-        transparent.add(Material.BIRCH_BUTTON);
-        transparent.add(Material.SPRUCE_BUTTON);
-        transparent.add(Material.JUNGLE_BUTTON);
-        transparent.add(Material.DARK_OAK_BUTTON);
-        transparent.add(Material.ACACIA_BUTTON);
+        transparent.addAll(getBlocks("button"));
         transparent.addAll(getBlocks("slab"));
         transparent.addAll(getBlocks("stairs"));
-        transparent.add(Material.OAK_SIGN);
-        transparent.add(Material.BIRCH_SIGN);
-        transparent.add(Material.SPRUCE_SIGN);
-        transparent.add(Material.JUNGLE_SIGN);
-        transparent.add(Material.DARK_OAK_SIGN);
-        transparent.add(Material.ACACIA_SIGN);
-        transparent.add(Material.OAK_WALL_SIGN);
-        transparent.add(Material.BIRCH_WALL_SIGN);
-        transparent.add(Material.SPRUCE_WALL_SIGN);
-        transparent.add(Material.JUNGLE_WALL_SIGN);
-        transparent.add(Material.DARK_OAK_WALL_SIGN);
-        transparent.add(Material.ACACIA_WALL_SIGN);
+        transparent.addAll(getBlocks("sign"));
     }
     public int directorTargetRange;
     public double tntAngleLimit;
@@ -211,6 +187,7 @@ public class Movecraft extends JavaPlugin{
     public ArrayList<CraftType> craftTypes = new ArrayList<>();
     public ArrayList<CraftType> subcraftTypes = new ArrayList<>();
     public ArrayList<Craft> crafts = new ArrayList<>();
+    public ArrayList<Craft> tickingCrafts = new ArrayList<>();
     public ArrayList<Craft> projectiles = new ArrayList<>();
     public int constructionTimeout,combatTimeout,combatPilots,combatCrew,damageTimeout;
     public boolean combatAND,combatBossbar;
@@ -250,7 +227,7 @@ public class Movecraft extends JavaPlugin{
         saveDefaultConfig();
         getConfig().options().copyDefaults(true);
 //</editor-fold>
-//<editor-fold defaultstate="collapsed" desc="Loading Config">
+        //<editor-fold defaultstate="collapsed" desc="Loading Config">
         ArrayList<Object> l = (ArrayList<Object>)getConfig().getList("crafts");
         for(Object o : l){
             LinkedHashMap craft = (LinkedHashMap)o;
@@ -484,6 +461,7 @@ public class Movecraft extends JavaPlugin{
         new BukkitRunnable(){
             @Override
             public void run(){
+                //<editor-fold defaultstate="collapsed" desc="AA/cannon directors">
                 for (World w : getServer().getWorlds()) {
                     if(w==null||w.getPlayers().isEmpty())continue;
                     for(SmallFireball fireball : w.getEntitiesByClass(SmallFireball.class)){
@@ -569,7 +547,9 @@ public class Movecraft extends JavaPlugin{
                         }
                     }
                 }
-                for (Iterator<TNTPrimed> it = tnts.keySet().iterator(); it.hasNext();) {
+//</editor-fold>
+                //<editor-fold defaultstate="collapsed" desc="Velocity-based TNT explosions">
+                for(Iterator<TNTPrimed> it = tnts.keySet().iterator(); it.hasNext();){
                     TNTPrimed tnt = it.next();
                     if(tnt.getFuseTicks()<=0){
                         it.remove();
@@ -578,13 +558,14 @@ public class Movecraft extends JavaPlugin{
                     double vel = tnt.getVelocity().lengthSquared();
                     if(vel<tnts.get(tnt)/10&&tnts.get(tnt)>.35){
                         tnt.setFuseTicks(0);
-                        System.out.println("Exploding TNT: "+vel+" "+tnts.get(tnt));
-                    }
-                    else{
+                        debug(null, "Exploding TNT: "+vel+" "+tnts.get(tnt));
+                    }else{
                         tnts.put(tnt, vel);
                     }
                 }
-                for (Iterator it = fireballs.keySet().iterator(); it.hasNext();) {
+                //</editor-fold>
+                //<editor-fold defaultstate="collapsed" desc="Killing dead fireballs">
+                for(Iterator it = fireballs.keySet().iterator(); it.hasNext();){
                     SmallFireball f = (SmallFireball)it.next();
                     if(f.isDead()){
                         it.remove();
@@ -601,6 +582,13 @@ public class Movecraft extends JavaPlugin{
                         it.remove();
                     }
                 }
+                //</editor-fold>
+                //<editor-fold defaultstate="collapsed" desc="Ticking crafts">
+                for(Iterator<Craft> it = tickingCrafts.iterator(); it.hasNext();){
+                    Craft c = it.next();
+                    if(c.notTickingAnymore)it.remove();
+                    c.tick();
+                } //</editor-fold>
             }
         }.runTaskTimer(this, 1, 1);
         getCommand("movecraft").setExecutor(new CommandMovecraft(this));
@@ -633,6 +621,8 @@ public class Movecraft extends JavaPlugin{
                     theBlocks.add(Material.STRIPPED_DARK_OAK_WOOD);
                     theBlocks.add(Material.STRIPPED_ACACIA_WOOD);
                     theBlocks.add(Material.STRIPPED_JUNGLE_WOOD);
+                    theBlocks.add(Material.STRIPPED_CRIMSON_HYPHAE);
+                    theBlocks.add(Material.STRIPPED_WARPED_HYPHAE);
                     break;
                 case "wood":
                     theBlocks.add(Material.OAK_WOOD);
@@ -641,6 +631,8 @@ public class Movecraft extends JavaPlugin{
                     theBlocks.add(Material.DARK_OAK_WOOD);
                     theBlocks.add(Material.ACACIA_WOOD);
                     theBlocks.add(Material.JUNGLE_WOOD);
+                    theBlocks.add(Material.CRIMSON_HYPHAE);
+                    theBlocks.add(Material.WARPED_HYPHAE);
                     break;
                 case "stripped log":
                     theBlocks.add(Material.STRIPPED_OAK_LOG);
@@ -649,6 +641,8 @@ public class Movecraft extends JavaPlugin{
                     theBlocks.add(Material.STRIPPED_DARK_OAK_LOG);
                     theBlocks.add(Material.STRIPPED_ACACIA_LOG);
                     theBlocks.add(Material.STRIPPED_JUNGLE_LOG);
+                    theBlocks.add(Material.STRIPPED_CRIMSON_STEM);
+                    theBlocks.add(Material.STRIPPED_WARPED_STEM);
                     break;
                 case "log":
                     theBlocks.add(Material.OAK_LOG);
@@ -657,97 +651,38 @@ public class Movecraft extends JavaPlugin{
                     theBlocks.add(Material.DARK_OAK_LOG);
                     theBlocks.add(Material.ACACIA_LOG);
                     theBlocks.add(Material.JUNGLE_LOG);
+                    theBlocks.add(Material.CRIMSON_STEM);
+                    theBlocks.add(Material.WARPED_STEM);
                     break;
                 case "wool":
-                    theBlocks.add(Material.WHITE_WOOL);
-                    theBlocks.add(Material.RED_WOOL);
-                    theBlocks.add(Material.ORANGE_WOOL);
-                    theBlocks.add(Material.YELLOW_WOOL);
-                    theBlocks.add(Material.GREEN_WOOL);
-                    theBlocks.add(Material.LIME_WOOL);
-                    theBlocks.add(Material.BLUE_WOOL);
-                    theBlocks.add(Material.MAGENTA_WOOL);
-                    theBlocks.add(Material.PURPLE_WOOL);
-                    theBlocks.add(Material.PINK_WOOL);
-                    theBlocks.add(Material.BLACK_WOOL);
-                    theBlocks.add(Material.BROWN_WOOL);
-                    theBlocks.add(Material.LIGHT_GRAY_WOOL);
-                    theBlocks.add(Material.LIGHT_BLUE_WOOL);
-                    theBlocks.add(Material.GRAY_WOOL);
-                    theBlocks.add(Material.CYAN_WOOL);
+                    for(Material m : Material.values()){
+                        if(m.isLegacy())continue;
+                        if(m.name().endsWith("_WOOL"))theBlocks.add(m);
+                    }
                     break;
                 case "carpet":
-                    theBlocks.add(Material.WHITE_CARPET);
-                    theBlocks.add(Material.RED_CARPET);
-                    theBlocks.add(Material.ORANGE_CARPET);
-                    theBlocks.add(Material.YELLOW_CARPET);
-                    theBlocks.add(Material.GREEN_CARPET);
-                    theBlocks.add(Material.LIME_CARPET);
-                    theBlocks.add(Material.BLUE_CARPET);
-                    theBlocks.add(Material.MAGENTA_CARPET);
-                    theBlocks.add(Material.PURPLE_CARPET);
-                    theBlocks.add(Material.PINK_CARPET);
-                    theBlocks.add(Material.BLACK_CARPET);
-                    theBlocks.add(Material.BROWN_CARPET);
-                    theBlocks.add(Material.LIGHT_GRAY_CARPET);
-                    theBlocks.add(Material.LIGHT_BLUE_CARPET);
-                    theBlocks.add(Material.GRAY_CARPET);
-                    theBlocks.add(Material.CYAN_CARPET);
+                    for(Material m : Material.values()){
+                        if(m.isLegacy())continue;
+                        if(m.name().endsWith("_CARPET"))theBlocks.add(m);
+                    }
                     break;
                 case "terracotta":
-                    theBlocks.add(Material.TERRACOTTA);
-                    theBlocks.add(Material.RED_TERRACOTTA);
-                    theBlocks.add(Material.ORANGE_TERRACOTTA);
-                    theBlocks.add(Material.YELLOW_TERRACOTTA);
-                    theBlocks.add(Material.GREEN_TERRACOTTA);
-                    theBlocks.add(Material.LIME_TERRACOTTA);
-                    theBlocks.add(Material.BLUE_TERRACOTTA);
-                    theBlocks.add(Material.MAGENTA_TERRACOTTA);
-                    theBlocks.add(Material.PURPLE_TERRACOTTA);
-                    theBlocks.add(Material.PINK_TERRACOTTA);
-                    theBlocks.add(Material.WHITE_TERRACOTTA);
-                    theBlocks.add(Material.BLACK_TERRACOTTA);
-                    theBlocks.add(Material.BROWN_TERRACOTTA);
-                    theBlocks.add(Material.LIGHT_GRAY_TERRACOTTA);
-                    theBlocks.add(Material.LIGHT_BLUE_TERRACOTTA);
-                    theBlocks.add(Material.GRAY_TERRACOTTA);
-                    theBlocks.add(Material.CYAN_TERRACOTTA);
+                    for(Material m : Material.values()){
+                        if(m.isLegacy())continue;
+                        if(m.name().endsWith("TERRACOTTA")&&!m.name().contains("GLAZED"))theBlocks.add(m);
+                    }
                     break;
                 case "glazed terracotta":
-                    theBlocks.add(Material.RED_GLAZED_TERRACOTTA);
-                    theBlocks.add(Material.ORANGE_GLAZED_TERRACOTTA);
-                    theBlocks.add(Material.YELLOW_GLAZED_TERRACOTTA);
-                    theBlocks.add(Material.GREEN_GLAZED_TERRACOTTA);
-                    theBlocks.add(Material.LIME_GLAZED_TERRACOTTA);
-                    theBlocks.add(Material.BLUE_GLAZED_TERRACOTTA);
-                    theBlocks.add(Material.MAGENTA_GLAZED_TERRACOTTA);
-                    theBlocks.add(Material.PURPLE_GLAZED_TERRACOTTA);
-                    theBlocks.add(Material.PINK_GLAZED_TERRACOTTA);
-                    theBlocks.add(Material.WHITE_GLAZED_TERRACOTTA);
-                    theBlocks.add(Material.BLACK_GLAZED_TERRACOTTA);
-                    theBlocks.add(Material.BROWN_GLAZED_TERRACOTTA);
-                    theBlocks.add(Material.LIGHT_GRAY_GLAZED_TERRACOTTA);
-                    theBlocks.add(Material.LIGHT_BLUE_GLAZED_TERRACOTTA);
-                    theBlocks.add(Material.GRAY_GLAZED_TERRACOTTA);
-                    theBlocks.add(Material.CYAN_GLAZED_TERRACOTTA);
+                    for(Material m : Material.values()){
+                        if(m.isLegacy())continue;
+                        if(m.name().endsWith("_GLAZED_TERRACOTTA"))theBlocks.add(m);
+                    }
                     break;
                 case "concrete":
-                    theBlocks.add(Material.RED_CONCRETE);
-                    theBlocks.add(Material.ORANGE_CONCRETE);
-                    theBlocks.add(Material.YELLOW_CONCRETE);
-                    theBlocks.add(Material.GREEN_CONCRETE);
-                    theBlocks.add(Material.LIME_CONCRETE);
-                    theBlocks.add(Material.BLUE_CONCRETE);
-                    theBlocks.add(Material.MAGENTA_CONCRETE);
-                    theBlocks.add(Material.PURPLE_CONCRETE);
-                    theBlocks.add(Material.PINK_CONCRETE);
-                    theBlocks.add(Material.WHITE_CONCRETE);
-                    theBlocks.add(Material.BLACK_CONCRETE);
-                    theBlocks.add(Material.BROWN_CONCRETE);
-                    theBlocks.add(Material.LIGHT_GRAY_CONCRETE);
-                    theBlocks.add(Material.LIGHT_BLUE_CONCRETE);
-                    theBlocks.add(Material.GRAY_CONCRETE);
-                    theBlocks.add(Material.CYAN_CONCRETE);
+                    for(Material m : Material.values()){
+                        if(m.isLegacy())continue;
+                        if(m.name().endsWith("_CONCRETE"))theBlocks.add(m);
+                    }
                     break;
                 case "chest":
                     theBlocks.add(Material.CHEST);
@@ -762,210 +697,58 @@ public class Movecraft extends JavaPlugin{
                     theBlocks.add(Material.REDSTONE_WALL_TORCH);
                     break;
                 case "banner":
-                    theBlocks.add(Material.WHITE_BANNER);
-                    theBlocks.add(Material.RED_BANNER);
-                    theBlocks.add(Material.ORANGE_BANNER);
-                    theBlocks.add(Material.YELLOW_BANNER);
-                    theBlocks.add(Material.GREEN_BANNER);
-                    theBlocks.add(Material.LIME_BANNER);
-                    theBlocks.add(Material.BLUE_BANNER);
-                    theBlocks.add(Material.MAGENTA_BANNER);
-                    theBlocks.add(Material.PURPLE_BANNER);
-                    theBlocks.add(Material.PINK_BANNER);
-                    theBlocks.add(Material.BLACK_BANNER);
-                    theBlocks.add(Material.BROWN_BANNER);
-                    theBlocks.add(Material.LIGHT_GRAY_BANNER);
-                    theBlocks.add(Material.LIGHT_BLUE_BANNER);
-                    theBlocks.add(Material.GRAY_BANNER);
-                    theBlocks.add(Material.CYAN_BANNER);
-                    theBlocks.add(Material.RED_WALL_BANNER);
-                    theBlocks.add(Material.ORANGE_WALL_BANNER);
-                    theBlocks.add(Material.YELLOW_WALL_BANNER);
-                    theBlocks.add(Material.GREEN_WALL_BANNER);
-                    theBlocks.add(Material.LIME_WALL_BANNER);
-                    theBlocks.add(Material.BLUE_WALL_BANNER);
-                    theBlocks.add(Material.MAGENTA_WALL_BANNER);
-                    theBlocks.add(Material.PURPLE_WALL_BANNER);
-                    theBlocks.add(Material.PINK_WALL_BANNER);
-                    theBlocks.add(Material.WHITE_WALL_BANNER);
-                    theBlocks.add(Material.BLACK_WALL_BANNER);
-                    theBlocks.add(Material.BROWN_WALL_BANNER);
-                    theBlocks.add(Material.LIGHT_GRAY_WALL_BANNER);
-                    theBlocks.add(Material.LIGHT_BLUE_WALL_BANNER);
-                    theBlocks.add(Material.GRAY_WALL_BANNER);
-                    theBlocks.add(Material.CYAN_WALL_BANNER);
+                    for(Material m : Material.values()){
+                        if(m.isLegacy())continue;
+                        if(m.name().endsWith("_BANNER"))theBlocks.add(m);
+                    }
                     break;
                 case "bed":
-                    theBlocks.add(Material.WHITE_BED);
-                    theBlocks.add(Material.RED_BED);
-                    theBlocks.add(Material.ORANGE_BED);
-                    theBlocks.add(Material.YELLOW_BED);
-                    theBlocks.add(Material.GREEN_BED);
-                    theBlocks.add(Material.LIME_BED);
-                    theBlocks.add(Material.BLUE_BED);
-                    theBlocks.add(Material.MAGENTA_BED);
-                    theBlocks.add(Material.PURPLE_BED);
-                    theBlocks.add(Material.PINK_BED);
-                    theBlocks.add(Material.BLACK_BED);
-                    theBlocks.add(Material.BROWN_BED);
-                    theBlocks.add(Material.LIGHT_GRAY_BED);
-                    theBlocks.add(Material.LIGHT_BLUE_BED);
-                    theBlocks.add(Material.GRAY_BED);
-                    theBlocks.add(Material.CYAN_BED);
+                    for(Material m : Material.values()){
+                        if(m.isLegacy())continue;
+                        if(m.name().endsWith("_BED"))theBlocks.add(m);
+                    }
                     break;
                 case "concrete powder":
-                    theBlocks.add(Material.WHITE_CONCRETE_POWDER);
-                    theBlocks.add(Material.RED_CONCRETE_POWDER);
-                    theBlocks.add(Material.ORANGE_CONCRETE_POWDER);
-                    theBlocks.add(Material.YELLOW_CONCRETE_POWDER);
-                    theBlocks.add(Material.GREEN_CONCRETE_POWDER);
-                    theBlocks.add(Material.LIME_CONCRETE_POWDER);
-                    theBlocks.add(Material.BLUE_CONCRETE_POWDER);
-                    theBlocks.add(Material.MAGENTA_CONCRETE_POWDER);
-                    theBlocks.add(Material.PURPLE_CONCRETE_POWDER);
-                    theBlocks.add(Material.PINK_CONCRETE_POWDER);
-                    theBlocks.add(Material.BLACK_CONCRETE_POWDER);
-                    theBlocks.add(Material.BROWN_CONCRETE_POWDER);
-                    theBlocks.add(Material.LIGHT_GRAY_CONCRETE_POWDER);
-                    theBlocks.add(Material.LIGHT_BLUE_CONCRETE_POWDER);
-                    theBlocks.add(Material.GRAY_CONCRETE_POWDER);
-                    theBlocks.add(Material.CYAN_CONCRETE_POWDER);
+                    for(Material m : Material.values()){
+                        if(m.isLegacy())continue;
+                        if(m.name().endsWith("_CONCRETE_POWDER"))theBlocks.add(m);
+                    }
                     break;
                 case "shulker box":
-                    theBlocks.add(Material.SHULKER_BOX);
-                    theBlocks.add(Material.RED_SHULKER_BOX);
-                    theBlocks.add(Material.ORANGE_SHULKER_BOX);
-                    theBlocks.add(Material.YELLOW_SHULKER_BOX);
-                    theBlocks.add(Material.GREEN_SHULKER_BOX);
-                    theBlocks.add(Material.LIME_SHULKER_BOX);
-                    theBlocks.add(Material.BLUE_SHULKER_BOX);
-                    theBlocks.add(Material.MAGENTA_SHULKER_BOX);
-                    theBlocks.add(Material.PURPLE_SHULKER_BOX);
-                    theBlocks.add(Material.PINK_SHULKER_BOX);
-                    theBlocks.add(Material.WHITE_SHULKER_BOX);
-                    theBlocks.add(Material.BLACK_SHULKER_BOX);
-                    theBlocks.add(Material.BROWN_SHULKER_BOX);
-                    theBlocks.add(Material.LIGHT_GRAY_SHULKER_BOX);
-                    theBlocks.add(Material.LIGHT_BLUE_SHULKER_BOX);
-                    theBlocks.add(Material.GRAY_SHULKER_BOX);
-                    theBlocks.add(Material.CYAN_SHULKER_BOX);
+                    for(Material m : Material.values()){
+                        if(m.isLegacy())continue;
+                        if(m.name().endsWith("SHULKER_BOX"))theBlocks.add(m);
+                    }
                     break;
                 case "glass":
-                    theBlocks.add(Material.GLASS);
-                    theBlocks.add(Material.RED_STAINED_GLASS);
-                    theBlocks.add(Material.ORANGE_STAINED_GLASS);
-                    theBlocks.add(Material.YELLOW_STAINED_GLASS);
-                    theBlocks.add(Material.GREEN_STAINED_GLASS);
-                    theBlocks.add(Material.LIME_STAINED_GLASS);
-                    theBlocks.add(Material.BLUE_STAINED_GLASS);
-                    theBlocks.add(Material.MAGENTA_STAINED_GLASS);
-                    theBlocks.add(Material.PURPLE_STAINED_GLASS);
-                    theBlocks.add(Material.PINK_STAINED_GLASS);
-                    theBlocks.add(Material.WHITE_STAINED_GLASS);
-                    theBlocks.add(Material.BLACK_STAINED_GLASS);
-                    theBlocks.add(Material.BROWN_STAINED_GLASS);
-                    theBlocks.add(Material.LIGHT_GRAY_STAINED_GLASS);
-                    theBlocks.add(Material.LIGHT_BLUE_STAINED_GLASS);
-                    theBlocks.add(Material.GRAY_STAINED_GLASS);
-                    theBlocks.add(Material.CYAN_STAINED_GLASS);
+                    for(Material m : Material.values()){
+                        if(m.isLegacy())continue;
+                        if(m.name().endsWith("GLASS"))theBlocks.add(m);
+                    }
                     break;
                 case "glass pane":
-                    theBlocks.add(Material.GLASS_PANE);
-                    theBlocks.add(Material.RED_STAINED_GLASS_PANE);
-                    theBlocks.add(Material.ORANGE_STAINED_GLASS_PANE);
-                    theBlocks.add(Material.YELLOW_STAINED_GLASS_PANE);
-                    theBlocks.add(Material.GREEN_STAINED_GLASS_PANE);
-                    theBlocks.add(Material.LIME_STAINED_GLASS_PANE);
-                    theBlocks.add(Material.BLUE_STAINED_GLASS_PANE);
-                    theBlocks.add(Material.MAGENTA_STAINED_GLASS_PANE);
-                    theBlocks.add(Material.PURPLE_STAINED_GLASS_PANE);
-                    theBlocks.add(Material.PINK_STAINED_GLASS_PANE);
-                    theBlocks.add(Material.WHITE_STAINED_GLASS_PANE);
-                    theBlocks.add(Material.BLACK_STAINED_GLASS_PANE);
-                    theBlocks.add(Material.BROWN_STAINED_GLASS_PANE);
-                    theBlocks.add(Material.LIGHT_GRAY_STAINED_GLASS_PANE);
-                    theBlocks.add(Material.LIGHT_BLUE_STAINED_GLASS_PANE);
-                    theBlocks.add(Material.GRAY_STAINED_GLASS_PANE);
-                    theBlocks.add(Material.CYAN_STAINED_GLASS_PANE);
+                    for(Material m : Material.values()){
+                        if(m.isLegacy())continue;
+                        if(m.name().endsWith("GLASS_PANE"))theBlocks.add(m);
+                    }
                     break;
                 case "stairs":
-                    theBlocks.add(Material.PURPUR_STAIRS);
-                    theBlocks.add(Material.OAK_STAIRS);
-                    theBlocks.add(Material.COBBLESTONE_STAIRS);
-                    theBlocks.add(Material.BRICK_STAIRS);
-                    theBlocks.add(Material.STONE_BRICK_STAIRS);
-                    theBlocks.add(Material.NETHER_BRICK_STAIRS);
-                    theBlocks.add(Material.SANDSTONE_STAIRS);
-                    theBlocks.add(Material.SPRUCE_STAIRS);
-                    theBlocks.add(Material.BIRCH_STAIRS);
-                    theBlocks.add(Material.JUNGLE_STAIRS);
-                    theBlocks.add(Material.QUARTZ_STAIRS);
-                    theBlocks.add(Material.ACACIA_STAIRS);
-                    theBlocks.add(Material.DARK_OAK_STAIRS);
-                    theBlocks.add(Material.PRISMARINE_STAIRS);
-                    theBlocks.add(Material.PRISMARINE_BRICK_STAIRS);
-                    theBlocks.add(Material.DARK_PRISMARINE_STAIRS);
-                    theBlocks.add(Material.RED_SANDSTONE_STAIRS);
-                    theBlocks.add(Material.POLISHED_GRANITE_STAIRS);
-                    theBlocks.add(Material.SMOOTH_RED_SANDSTONE_STAIRS);
-                    theBlocks.add(Material.MOSSY_STONE_BRICK_STAIRS);
-                    theBlocks.add(Material.POLISHED_DIORITE_STAIRS);
-                    theBlocks.add(Material.MOSSY_COBBLESTONE_STAIRS);
-                    theBlocks.add(Material.END_STONE_BRICK_STAIRS);
-                    theBlocks.add(Material.STONE_STAIRS);
-                    theBlocks.add(Material.SMOOTH_SANDSTONE_STAIRS);
-                    theBlocks.add(Material.SMOOTH_QUARTZ_STAIRS);
-                    theBlocks.add(Material.GRANITE_STAIRS);
-                    theBlocks.add(Material.ANDESITE_STAIRS);
-                    theBlocks.add(Material.RED_NETHER_BRICK_STAIRS);
-                    theBlocks.add(Material.POLISHED_ANDESITE_STAIRS);
-                    theBlocks.add(Material.DIORITE_STAIRS);
+                    for(Material m : Material.values()){
+                        if(m.isLegacy())continue;
+                        if(m.name().endsWith("_STAIRS"))theBlocks.add(m);
+                    }
                     break;
                 case "slab":
-                    theBlocks.add(Material.PURPUR_SLAB);
-                    theBlocks.add(Material.OAK_SLAB);
-                    theBlocks.add(Material.COBBLESTONE_SLAB);
-                    theBlocks.add(Material.BRICK_SLAB);
-                    theBlocks.add(Material.STONE_BRICK_SLAB);
-                    theBlocks.add(Material.NETHER_BRICK_SLAB);
-                    theBlocks.add(Material.SANDSTONE_SLAB);
-                    theBlocks.add(Material.SPRUCE_SLAB);
-                    theBlocks.add(Material.BIRCH_SLAB);
-                    theBlocks.add(Material.JUNGLE_SLAB);
-                    theBlocks.add(Material.QUARTZ_SLAB);
-                    theBlocks.add(Material.ACACIA_SLAB);
-                    theBlocks.add(Material.DARK_OAK_SLAB);
-                    theBlocks.add(Material.PRISMARINE_SLAB);
-                    theBlocks.add(Material.PRISMARINE_BRICK_SLAB);
-                    theBlocks.add(Material.DARK_PRISMARINE_SLAB);
-                    theBlocks.add(Material.RED_SANDSTONE_SLAB);
-                    theBlocks.add(Material.POLISHED_GRANITE_SLAB);
-                    theBlocks.add(Material.SMOOTH_RED_SANDSTONE_SLAB);
-                    theBlocks.add(Material.MOSSY_STONE_BRICK_SLAB);
-                    theBlocks.add(Material.POLISHED_DIORITE_SLAB);
-                    theBlocks.add(Material.MOSSY_COBBLESTONE_SLAB);
-                    theBlocks.add(Material.END_STONE_BRICK_SLAB);
-                    theBlocks.add(Material.STONE_SLAB);
-                    theBlocks.add(Material.SMOOTH_SANDSTONE_SLAB);
-                    theBlocks.add(Material.SMOOTH_QUARTZ_SLAB);
-                    theBlocks.add(Material.GRANITE_SLAB);
-                    theBlocks.add(Material.ANDESITE_SLAB);
-                    theBlocks.add(Material.RED_NETHER_BRICK_SLAB);
-                    theBlocks.add(Material.POLISHED_ANDESITE_SLAB);
-                    theBlocks.add(Material.DIORITE_SLAB);
-                    theBlocks.add(Material.PETRIFIED_OAK_SLAB);
-                    theBlocks.add(Material.SMOOTH_STONE_SLAB);
-                    theBlocks.add(Material.CUT_RED_SANDSTONE_SLAB);
-                    theBlocks.add(Material.CUT_SANDSTONE_SLAB);
+                    for(Material m : Material.values()){
+                        if(m.isLegacy())continue;
+                        if(m.name().endsWith("_SLAB"))theBlocks.add(m);
+                    }
                     break;
                 case "fence":
-                    theBlocks.add(Material.OAK_FENCE);
-                    theBlocks.add(Material.SPRUCE_FENCE);
-                    theBlocks.add(Material.BIRCH_FENCE);
-                    theBlocks.add(Material.JUNGLE_FENCE);
-                    theBlocks.add(Material.DARK_OAK_FENCE);
-                    theBlocks.add(Material.ACACIA_FENCE);
-                    theBlocks.add(Material.NETHER_BRICK_FENCE);
+                    for(Material m : Material.values()){
+                        if(m.isLegacy())continue;
+                        if(m.name().endsWith("_FENCE"))theBlocks.add(m);
+                    }
                     break;
                 case "piston":
                     theBlocks.add(Material.PISTON);
@@ -973,91 +756,55 @@ public class Movecraft extends JavaPlugin{
                     theBlocks.add(Material.PISTON_HEAD);
                     break;
                 case "pressure plate":
-                    theBlocks.add(Material.STONE_PRESSURE_PLATE);
-                    theBlocks.add(Material.OAK_PRESSURE_PLATE);
-                    theBlocks.add(Material.SPRUCE_PRESSURE_PLATE);
-                    theBlocks.add(Material.BIRCH_PRESSURE_PLATE);
-                    theBlocks.add(Material.JUNGLE_PRESSURE_PLATE);
-                    theBlocks.add(Material.ACACIA_PRESSURE_PLATE);
-                    theBlocks.add(Material.DARK_OAK_PRESSURE_PLATE);
-                    theBlocks.add(Material.LIGHT_WEIGHTED_PRESSURE_PLATE);
-                    theBlocks.add(Material.HEAVY_WEIGHTED_PRESSURE_PLATE);
+                    for(Material m : Material.values()){
+                        if(m.isLegacy())continue;
+                        if(m.name().endsWith("_PRESSURE_PLATE"))theBlocks.add(m);
+                    }
                     break;
                 case "button":
-                    theBlocks.add(Material.STONE_BUTTON);
-                    theBlocks.add(Material.OAK_BUTTON);
-                    theBlocks.add(Material.SPRUCE_BUTTON);
-                    theBlocks.add(Material.BIRCH_BUTTON);
-                    theBlocks.add(Material.JUNGLE_BUTTON);
-                    theBlocks.add(Material.ACACIA_BUTTON);
-                    theBlocks.add(Material.DARK_OAK_BUTTON);
+                    for(Material m : Material.values()){
+                        if(m.isLegacy())continue;
+                        if(m.name().endsWith("_BUTTON"))theBlocks.add(m);
+                    }
                     break;
                 case "trapdoor":
-                    theBlocks.add(Material.IRON_TRAPDOOR);
-                    theBlocks.add(Material.OAK_TRAPDOOR);
-                    theBlocks.add(Material.SPRUCE_TRAPDOOR);
-                    theBlocks.add(Material.BIRCH_TRAPDOOR);
-                    theBlocks.add(Material.JUNGLE_TRAPDOOR);
-                    theBlocks.add(Material.ACACIA_TRAPDOOR);
-                    theBlocks.add(Material.DARK_OAK_TRAPDOOR);
+                    for(Material m : Material.values()){
+                        if(m.isLegacy())continue;
+                        if(m.name().endsWith("_TRAPDOOR"))theBlocks.add(m);
+                    }
                     break;
                 case "fence gate":
-                    theBlocks.add(Material.OAK_FENCE_GATE);
-                    theBlocks.add(Material.SPRUCE_FENCE_GATE);
-                    theBlocks.add(Material.BIRCH_FENCE_GATE);
-                    theBlocks.add(Material.JUNGLE_FENCE_GATE);
-                    theBlocks.add(Material.DARK_OAK_FENCE_GATE);
-                    theBlocks.add(Material.ACACIA_FENCE_GATE);
+                    for(Material m : Material.values()){
+                        if(m.isLegacy())continue;
+                        if(m.name().endsWith("_FENCE_GATE"))theBlocks.add(m);
+                    }
                     break;
                 case "door":
-                    theBlocks.add(Material.IRON_DOOR);
-                    theBlocks.add(Material.OAK_DOOR);
-                    theBlocks.add(Material.SPRUCE_DOOR);
-                    theBlocks.add(Material.BIRCH_DOOR);
-                    theBlocks.add(Material.JUNGLE_DOOR);
-                    theBlocks.add(Material.ACACIA_DOOR);
-                    theBlocks.add(Material.DARK_OAK_DOOR);
+                    for(Material m : Material.values()){
+                        if(m.isLegacy())continue;
+                        if(m.name().endsWith("_DOOR"))theBlocks.add(m);
+                    }
                     break;
                 case "enchanter":
                     theBlocks.add(Material.ENCHANTING_TABLE);
                     break;
                 case "wall":
-                    theBlocks.add(Material.COBBLESTONE_WALL);
-                    theBlocks.add(Material.MOSSY_COBBLESTONE_WALL);
-                    theBlocks.add(Material.BRICK_WALL);
-                    theBlocks.add(Material.PRISMARINE_WALL);
-                    theBlocks.add(Material.SANDSTONE_WALL);
-                    theBlocks.add(Material.RED_SANDSTONE_WALL);
-                    theBlocks.add(Material.MOSSY_STONE_BRICK_WALL);
-                    theBlocks.add(Material.GRANITE_WALL);
-                    theBlocks.add(Material.STONE_BRICK_WALL);
-                    theBlocks.add(Material.NETHER_BRICK_WALL);
-                    theBlocks.add(Material.RED_NETHER_BRICK_WALL);
-                    theBlocks.add(Material.ANDESITE_WALL);
-                    theBlocks.add(Material.END_STONE_BRICK_WALL);
-                    theBlocks.add(Material.DIORITE_WALL);
+                    for(Material m : Material.values()){
+                        if(m.isLegacy())continue;
+                        if(m.name().endsWith("_WALL"))theBlocks.add(m);
+                    }
                     break;
                 case "sign":
-                    theBlocks.add(Material.OAK_SIGN);
-                    theBlocks.add(Material.BIRCH_SIGN);
-                    theBlocks.add(Material.SPRUCE_SIGN);
-                    theBlocks.add(Material.JUNGLE_SIGN);
-                    theBlocks.add(Material.ACACIA_SIGN);
-                    theBlocks.add(Material.DARK_OAK_SIGN);
-                    theBlocks.add(Material.OAK_WALL_SIGN);
-                    theBlocks.add(Material.BIRCH_WALL_SIGN);
-                    theBlocks.add(Material.SPRUCE_WALL_SIGN);
-                    theBlocks.add(Material.JUNGLE_WALL_SIGN);
-                    theBlocks.add(Material.ACACIA_WALL_SIGN);
-                    theBlocks.add(Material.DARK_OAK_WALL_SIGN);
+                    for(Material m : Material.values()){
+                        if(m.isLegacy())continue;
+                        if(m.name().endsWith("_SIGN"))theBlocks.add(m);
+                    }
                     break;
                 case "planks":
-                    theBlocks.add(Material.OAK_PLANKS);
-                    theBlocks.add(Material.BIRCH_PLANKS);
-                    theBlocks.add(Material.SPRUCE_PLANKS);
-                    theBlocks.add(Material.JUNGLE_PLANKS);
-                    theBlocks.add(Material.ACACIA_PLANKS);
-                    theBlocks.add(Material.DARK_OAK_PLANKS);
+                    for(Material m : Material.values()){
+                        if(m.isLegacy())continue;
+                        if(m.name().endsWith("_PLANKS"))theBlocks.add(m);
+                    }
                     break;
                 default:
                     Material m = Material.matchMaterial(str);
@@ -1236,18 +983,10 @@ public class Movecraft extends JavaPlugin{
     }
     public Craft getCraft(Block block){
         CRAFTS:for(Craft craft : crafts){
-            for(Block b : craft.blocks){
-                if(block.equals(b)){
-                    return craft;
-                }
-            }
+            if(craft.containsBlock(block))return craft;
         }
         CRAFTS:for(Craft craft : projectiles){
-            for(Block b : craft.blocks){
-                if(block.equals(b)){
-                    return craft;
-                }
-            }
+            if(craft.containsBlock(block))return craft;
         }
         return null;
     }

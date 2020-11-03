@@ -17,11 +17,14 @@ import org.bukkit.FluidCollisionMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.SoundCategory;
 import org.bukkit.World;
 import org.bukkit.block.Banner;
+import org.bukkit.block.Barrel;
 import org.bukkit.block.Beacon;
+import org.bukkit.block.Beehive;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.BlockState;
@@ -34,6 +37,7 @@ import org.bukkit.block.EndGateway;
 import org.bukkit.block.Furnace;
 import org.bukkit.block.Jukebox;
 import org.bukkit.block.Lectern;
+import org.bukkit.block.Lidded;
 import org.bukkit.block.Lockable;
 import org.bukkit.block.Sign;
 import org.bukkit.block.Skull;
@@ -77,7 +81,6 @@ public class Craft{
     private int involuntaryTimer = 0;
     private int maneuverTimer = 0;
     private final World world;
-    private BukkitTask ticker;
     private BoundingBox bbox;
     private boolean sinking = false;
     public boolean moving;
@@ -255,6 +258,7 @@ public class Craft{
     }
     public HashMap<Player, Block> aaTargets = new HashMap<>();
     public HashMap<Player, Block> cannonTargets = new HashMap<>();
+    public boolean notTickingAnymore = false;
     public Craft(Movecraft plugin, CraftType type, Set<Block> blocks, Player pilot){
         this.movecraft = plugin;
         this.type = type;
@@ -263,12 +267,7 @@ public class Craft{
         canFly = type.flight!=null;
         canDive = type.dive!=null;
         if(type.type!=CraftType.SUBCRAFT){
-            ticker = new BukkitRunnable() {
-                @Override
-                public void run(){
-                    tick();
-                }
-            }.runTaskTimer(plugin, 1, 1);
+            movecraft.tickingCrafts.add(this);
         }
         world = pilot.getWorld();
         updateHull(null, 0, false, null);
@@ -505,7 +504,7 @@ public class Craft{
             repilot();
             return;
         }
-        ticker.cancel();
+        notTickingAnymore = true;
         notifyCrew("Craft released.");
         movecraft.crafts.remove(this);
         movecraft.projectiles.remove(this);
@@ -516,6 +515,9 @@ public class Craft{
         rotateAbout(getOrigin().clone().subtract(0.5,0.5,0.5), amount);
     }
     public ArrayList<BlockMovement> rotateAbout(Location origin, int amount){//rotate about the block
+        origin.setX(Math.round(origin.getX()));
+        origin.setY(Math.round(origin.getY()));
+        origin.setZ(Math.round(origin.getZ()));
         while(amount>=4)amount-=4;
         while(amount<0)amount+=4;
         ArrayList<BlockMovement> movements = new ArrayList<>();
@@ -635,6 +637,8 @@ public class Craft{
                     if(m.from.equals(b.getLocation())){
                         Location diff = m.to.clone().subtract(m.from.clone());
                         entityMovements.put(entity, rotate(entity.getLocation().clone().add(diff), m.to.clone().add(.5, 0, .5), m.rotation));
+                        world.spawnParticle(Particle.FLAME, m.to.clone().add(.5,0,.5), 500, 0, 5, 0, 0);
+                        world.spawnParticle(Particle.FLAME, m.to.clone().add(0,0,0), 100, 0, 5, 0, 0);
                         entityRotation = m.rotation;
                         break;
                     }
@@ -691,6 +695,7 @@ public class Craft{
         movecraft.debug(pilot, "Prepared Move");
         ArrayList<BlockChange> changes = new ArrayList<>();
         ArrayList<Block> newBlocks = new ArrayList<>();
+        HashSet<Block> blox = new HashSet<>(blocks);
         for(BlockMovement movement : movements){ 
             Block movesFrom = world.getBlockAt(movement.from);
             Block movesTo = world.getBlockAt(movement.to);
@@ -702,20 +707,10 @@ public class Craft{
                 changes.add(new BlockChange(movesTo, movesFrom, movement.rotation));
             }
             newBlocks.add(movesTo);
+            blox.remove(movesTo);
         }
-        for(Block block : blocks){
-            if(newBlocks.contains(block))continue;
-            if(underwaterMove){
-                if(block.getY()>waterLevel){
-                    changes.add(new BlockChange(block, Material.AIR, null, null));
-                }else{
-                    changes.add(new BlockChange(block, Material.WATER, null, null));
-                }
-            }else{
-                changes.add(new BlockChange(block, Material.AIR, null, null));
-            }
-        }
-        movecraft.debug(pilot, "Compiled BlockChanges");
+        movecraft.debug(pilot, "Mid-compiled BlockChanges");
+        finishCompilingBlockChanges(underwaterMove, waterLevel, changes, blox);
         Collections.sort(changes);
         movecraft.debug(pilot, "Sorted BlockChanges");
 //        int created = 0;
@@ -814,6 +809,7 @@ public class Craft{
                 actionbar(player, "Ship moved to ("+getOrigin().getBlockX()+", "+getOrigin().getBlockY()+", "+getOrigin().getBlockZ()+")");
             }
         }
+        signs = null;
         updateSigns();
         return entityMovements.keySet();
     }
@@ -841,6 +837,7 @@ public class Craft{
     }
     public boolean removeBlock(Player player, Block b, boolean damage){
         if(moving)return false;
+        signs = null;
         if(damage)setMode(COMBAT);
         else setMode(CONSTRUCTION);
         movecraft.debug(pilot, "Breaking block; damage: "+damage);
@@ -852,6 +849,7 @@ public class Craft{
         }
     }
     public boolean updateHull(Player player, int damage, boolean damaged, Location l){
+        signs = null;
         movecraft.debug(pilot, "Updating hull; damage: "+damage+" "+damaged);
         for(Iterator<Block> it = blocks.iterator(); it.hasNext();){
             Block block = it.next();
@@ -1092,7 +1090,7 @@ public class Craft{
         }while(somethingChanged);
         if(blocks.isEmpty()){
             movecraft.sinking.remove(this);
-            ticker.cancel();
+            notTickingAnymore = true;
             return;
         }
         for(Block block : blocks){
@@ -1390,13 +1388,7 @@ public class Craft{
         actionbarPilots("Subcraft rotated: "+ChatColor.AQUA+name);
     }
     private void updateSigns(){
-        ArrayList<Sign> signs = new ArrayList<>();
-        for(Block block : blocks){
-            if(Movecraft.Tags.isSign(block.getType())){
-                signs.add((Sign) block.getState());
-            }
-        }
-        for(Sign sign : signs){
+        for(Sign sign : getSigns()){
             CraftSign cs = CraftSign.getSign(sign);
             if(cs!=null){
                 cs.update(this, sign);
@@ -1405,29 +1397,22 @@ public class Craft{
     }
     public Set<String> getCrewNames(){
         HashSet<String> crew = new HashSet<>();
-        crew.addAll(getPilotNames());
-        for(Block b : blocks){
-            if(Movecraft.Tags.isSign(b.getType())){
-                Sign sign = (Sign) b.getState();
-                if(sign.getLine(0).equalsIgnoreCase("Crew:")){
-                    crew.add(sign.getLine(1));
-                    crew.add(sign.getLine(2));
-                    crew.add(sign.getLine(3));
-                }
+        for(Sign sign : getSigns()){
+            if(sign.getLine(0).equalsIgnoreCase("Crew:")||sign.getLine(0).equalsIgnoreCase("Pilot:")){
+                crew.add(sign.getLine(1));
+                crew.add(sign.getLine(2));
+                crew.add(sign.getLine(3));
             }
         }
         return crew;
     }
     public Set<String> getPilotNames(){
         HashSet<String> pilots = new HashSet<>();
-        for(Block b : blocks){
-            if(Movecraft.Tags.isSign(b.getType())){
-                Sign sign = (Sign) b.getState();
-                if(sign.getLine(0).equalsIgnoreCase("Pilot:")){
-                    pilots.add(sign.getLine(1));
-                    pilots.add(sign.getLine(2));
-                    pilots.add(sign.getLine(3));
-                }
+        for(Sign sign : getSigns()){
+            if(sign.getLine(0).equalsIgnoreCase("Pilot:")){
+                pilots.add(sign.getLine(1));
+                pilots.add(sign.getLine(2));
+                pilots.add(sign.getLine(3));
             }
         }
         return pilots;
@@ -2266,6 +2251,29 @@ public class Craft{
         if(target==null)cannonTargets.remove(player);
         else cannonTargets.put(player, target);
     }
+    private void finishCompilingBlockChanges(boolean underwaterMove, int waterLevel, ArrayList<BlockChange> changes, Set<Block> blox){
+        int A = 0;
+        int B = 0;
+        int C = 0;
+        for(Block block : blox){
+            if(underwaterMove){
+                if(block.getY()>waterLevel){
+                    changes.add(new BlockChange(block, Material.AIR, null, null));
+                    A++;
+                }else{
+                    changes.add(new BlockChange(block, Material.WATER, null, null));
+                    B++;
+                }
+            }else{
+                changes.add(new BlockChange(block, Material.AIR, null, null));
+                C++;
+            }
+        }
+        movecraft.debug(pilot, "Compiled BlockChanges "+A+" "+B+" "+C);
+    }
+    boolean containsBlock(Block block){
+        return blocks.contains(block);
+    }//TODO optimize - this is super laggy on large ships
     private static class BlockChange implements Comparable<BlockChange>{
         private final Material type;
         private final BlockData data;
@@ -2300,6 +2308,11 @@ public class Craft{
             if(data!=null)block.setBlockData(data);
             BlockState newState = block.getState();
             if(state!=null){
+                if(state instanceof org.bukkit.block.Beehive){
+                    Beehive theNew = (Beehive)newState;
+                    Beehive theOld = (Beehive)state;
+//                    theNew.
+                }
                 if(state instanceof Container){
                     Container newContainer = (Container)newState;
                     Container oldContainer = (Container)state;
@@ -2479,6 +2492,7 @@ public class Craft{
      * @param innerShip All that are part of the ship's interior (including air blocks) and/or are not on the outside of the ship
      */
     private void scanHull(Set<Block> outsideBlocks, Set<Block> outerHull, Set<Block> innerShip){
+        signs = null;
         Set<Block> allBlocks = new HashSet<>();
         Set<Block> nextLayer = new HashSet<>();
         int x1,y1,z1,x2,y2,z2;
@@ -2534,10 +2548,14 @@ public class Craft{
         innerShip.removeAll(outsideBlocks);
         innerShip.removeAll(outerHull);
     }
+    private Set<Sign> signs = null;
     public Set<Sign> getSigns(){
-        Set<Sign> signs = new HashSet<>();
-        for(Block b : blocks){
-            if(Movecraft.Tags.isSign(b.getType()))signs.add((Sign)b.getState());
+        if(signs==null){
+            Set<Sign> signs = new HashSet<>();
+            for(Block b : blocks){
+                if(Movecraft.Tags.isSign(b.getType()))signs.add((Sign)b.getState());
+            }
+            this.signs = signs;
         }
         return signs;
     }

@@ -1,8 +1,6 @@
 package com.thizthizzydizzy.movecraft.event;
 import com.thizthizzydizzy.movecraft.Craft;
 import com.thizthizzydizzy.movecraft.Movecraft;
-import java.util.ArrayList;
-import org.bukkit.Material;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntitySpawnEvent;
