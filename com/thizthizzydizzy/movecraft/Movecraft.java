@@ -48,7 +48,6 @@ public class Movecraft extends JavaPlugin{
     public ArrayList<Craft> sinking = new ArrayList<>();
     public static Movecraft instance;
     public boolean debug = false;
-    public boolean corruption = false;
     private static final ArrayList<String> movements = new ArrayList<>();
     static{
         movements.add("fly");

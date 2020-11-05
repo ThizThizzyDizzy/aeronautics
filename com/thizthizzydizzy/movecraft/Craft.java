@@ -63,7 +63,6 @@ import org.bukkit.util.BoundingBox;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
 public class Craft{
-    private static boolean corruption;
     private final Movecraft movecraft;
     public final CraftType type;
     public final Set<Block> blocks;
@@ -607,7 +606,6 @@ public class Craft{
     }
     private Iterable<Entity> move(Collection<BlockMovement> movements, boolean force){
         if(blocks.isEmpty())return null;
-        corruption = movecraft.getServer().getPluginManager().getPlugin("Corruption")!=null;
         boolean underwaterMove = isUnderwater(false)&&((type.dive!=null&&canDive)||(type.dive!=null&&type.flight!=null&&canFly&&!canDive));
         int waterLevel = 0;
         if(underwaterMove)waterLevel = getWaterLevel();
@@ -1116,9 +1114,6 @@ public class Craft{
         for(int i = 0; i<rotation; i++)rotateBlock(data);
     }
     public static void rotateBlock(BlockData data){
-        if(data.getMaterial()==Material.MUSHROOM_STEM&&corruption){
-            return;
-        }
         if(data instanceof RedstoneWire){
             RedstoneWire wire = (RedstoneWire)data;
             Connection n = wire.getFace(BlockFace.NORTH);
