@@ -464,6 +464,7 @@ public class Movecraft extends JavaPlugin{
                 //<editor-fold defaultstate="collapsed" desc="AA/cannon directors">
                 for (World w : getServer().getWorlds()) {
                     if(w==null||w.getPlayers().isEmpty())continue;
+                    //<editor-fold defaultstate="collapsed" desc="AA directors">
                     for(SmallFireball fireball : w.getEntitiesByClass(SmallFireball.class)){
                         if(!(fireball.getShooter() instanceof LivingEntity)){
                             if(!fireballs.containsKey(fireball)){
@@ -507,6 +508,8 @@ public class Movecraft extends JavaPlugin{
                             }
                         }
                     }
+//</editor-fold>
+                    //<editor-fold defaultstate="collapsed" desc="Cannon directors">
                     for(TNTPrimed tnt : w.getEntitiesByClass(TNTPrimed.class)){
                         if(tnts.containsKey(tnt)||tnt.getVelocity().lengthSquared()<=.35)continue;
                         Craft c = getNearestCraft(tnt.getLocation());
@@ -546,6 +549,7 @@ public class Movecraft extends JavaPlugin{
                             tnt.setVelocity(tntVel);
                         }
                     }
+                    //</editor-fold>
                 }
 //</editor-fold>
                 //<editor-fold defaultstate="collapsed" desc="Velocity-based TNT explosions">
@@ -982,6 +986,8 @@ public class Movecraft extends JavaPlugin{
         return i;
     }
     public Craft getCraft(Block block){
+        debug(null, "Finding craft for block "+block.getX()+" "+block.getY()+" "+block.getZ());
+        if(getCraft(block.getLocation())==null)return null;
         CRAFTS:for(Craft craft : crafts){
             if(craft.containsBlock(block))return craft;
         }

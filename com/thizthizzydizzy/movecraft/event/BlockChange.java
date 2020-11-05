@@ -2,8 +2,11 @@ package com.thizthizzydizzy.movecraft.event;
 import com.thizthizzydizzy.movecraft.Craft;
 import com.thizthizzydizzy.movecraft.CraftSign;
 import com.thizthizzydizzy.movecraft.Movecraft;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Random;
+import java.util.Set;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Waterlogged;
@@ -22,6 +25,18 @@ public class BlockChange implements Listener{
     private final Movecraft movecraft;
     public BlockChange(Movecraft movecraft){
         this.movecraft = movecraft;
+    }
+    private Set<Craft> breakingblocks = new HashSet<>();
+    public void breakBlockMulti(Block block){
+        Craft craft = movecraft.getCraft(block);
+        if(craft!=null){
+            breakingblocks.add(craft);
+            craft.startRemoveBlocks(null, block, true);
+        }
+    }
+    private void finishBreakingBlocks(){
+        for(Craft c : breakingblocks)c.finishRemoveBlocks();
+        breakingblocks.clear();
     }
     public void breakBlock(Block block){
         Craft craft = movecraft.getCraft(block);
@@ -108,8 +123,9 @@ public class BlockChange implements Listener{
                     continue;
                 }
             }
-            breakBlock(b);
+            breakBlockMulti(b);
         }
+        finishBreakingBlocks();
     }
     private boolean hasWater(Block b){
         if(b.isLiquid())return true;

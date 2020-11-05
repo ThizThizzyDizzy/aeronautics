@@ -7,9 +7,9 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.UUID;
-import net.minecraft.server.v1_16_R2.ChatMessageType;
-import net.minecraft.server.v1_16_R2.IChatBaseComponent;
-import net.minecraft.server.v1_16_R2.PacketPlayOutChat;
+import net.minecraft.server.v1_16_R3.ChatMessageType;
+import net.minecraft.server.v1_16_R3.IChatBaseComponent;
+import net.minecraft.server.v1_16_R3.PacketPlayOutChat;
 import org.bukkit.Axis;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -17,12 +17,10 @@ import org.bukkit.FluidCollisionMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
-import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.SoundCategory;
 import org.bukkit.World;
 import org.bukkit.block.Banner;
-import org.bukkit.block.Barrel;
 import org.bukkit.block.Beacon;
 import org.bukkit.block.Beehive;
 import org.bukkit.block.Block;
@@ -37,7 +35,6 @@ import org.bukkit.block.EndGateway;
 import org.bukkit.block.Furnace;
 import org.bukkit.block.Jukebox;
 import org.bukkit.block.Lectern;
-import org.bukkit.block.Lidded;
 import org.bukkit.block.Lockable;
 import org.bukkit.block.Sign;
 import org.bukkit.block.Skull;
@@ -55,15 +52,13 @@ import org.bukkit.block.data.type.RedstoneWire.Connection;
 import org.bukkit.block.data.type.Slab;
 import org.bukkit.block.data.type.Stairs;
 import org.bukkit.block.data.type.TrapDoor;
-import org.bukkit.craftbukkit.v1_16_R2.entity.CraftPlayer;
+import org.bukkit.craftbukkit.v1_16_R3.entity.CraftPlayer;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Hanging;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.FurnaceInventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.BoundingBox;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
@@ -637,8 +632,6 @@ public class Craft{
                     if(m.from.equals(b.getLocation())){
                         Location diff = m.to.clone().subtract(m.from.clone());
                         entityMovements.put(entity, rotate(entity.getLocation().clone().add(diff), m.to.clone().add(.5, 0, .5), m.rotation));
-                        world.spawnParticle(Particle.FLAME, m.to.clone().add(.5,0,.5), 500, 0, 5, 0, 0);
-                        world.spawnParticle(Particle.FLAME, m.to.clone().add(0,0,0), 100, 0, 5, 0, 0);
                         entityRotation = m.rotation;
                         break;
                     }
@@ -848,6 +841,22 @@ public class Craft{
             return false;
         }
     }
+    int multiDamage = 0;
+    public void startRemoveBlocks(Player player, Block b, boolean damage){
+        if(moving)return;
+        signs = null;
+        movecraft.debug(pilot, "Adding blocks to break; so far: "+(multiDamage+1));
+        if(damage)setMode(COMBAT);
+        else setMode(CONSTRUCTION);
+        multiDamage++;
+        blocks.remove(b);
+    }
+    public void finishRemoveBlocks(){
+        signs = null;
+        movecraft.debug(pilot, "Breaking blocks; damage: "+multiDamage);
+        updateHull(null, multiDamage, true, null);
+        multiDamage = 0;
+    }
     public boolean updateHull(Player player, int damage, boolean damaged, Location l){
         signs = null;
         movecraft.debug(pilot, "Updating hull; damage: "+damage+" "+damaged);
@@ -935,10 +944,12 @@ public class Craft{
             }
         }
         updateDisabled();
-        if(!damaged){
-            playSound(player, l, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, .95f);
-        }else{
-            playSound(player, l, Sound.ENTITY_GENERIC_EXPLODE, 2);
+        if(l!=null){
+            if(!damaged){
+                playSound(player, l, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, .95f);
+            }else{
+                playSound(player, l, Sound.ENTITY_GENERIC_EXPLODE, 2);
+            }
         }
         calculateBoundingBox();
         updateSigns();
