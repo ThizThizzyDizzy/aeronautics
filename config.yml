@@ -1795,18 +1795,19 @@ construction-timeout: 1200
 combat-timeout: 6000
 combat-pilots: 2
 combat-crew: 3
-combat-mode: OR
 combat-bossbar: true
 damage-report-timeout: 20
 yellow-threshold: .1
 red-threshold: .05
-tnt-threshold: .5
 fireball-lifespan: 100
 fireball-angle: 0.5
 tnt-angle: 0.7
 director-target-range: 192
-block-resistance:
-  - block: end stone
-    resistance: 0.31
-  - block: end stone brick
-    resistance: 0.31
+block-resistance-override: {}
+block-resistance: {end stone: .31, end stone brick: .31}
+tracer-stream: cobweb
+tracer-stream-time: 50
+tracer-explosion: glowstone
+tracer-explosion-time: 50
+tracer-interval: 5
+tracer-velocity-threshold: .6

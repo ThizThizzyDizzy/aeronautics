@@ -1,12 +1,14 @@
-package com.thizthizzydizzy.movecraft.event;
-import com.thizthizzydizzy.movecraft.Craft;
-import com.thizthizzydizzy.movecraft.CraftSign;
+package com.thizthizzydizzy.movecraft.listener;
+import com.thizthizzydizzy.movecraft.craft.Craft;
+import com.thizthizzydizzy.movecraft.craft.CraftSign;
 import com.thizthizzydizzy.movecraft.Movecraft;
+import com.thizthizzydizzy.movecraft.event.BlockMoveEvent;
+import com.thizthizzydizzy.movecraft.option.Option;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Random;
 import java.util.Set;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Waterlogged;
@@ -19,14 +21,15 @@ import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.block.BlockSpreadEvent;
 import org.bukkit.event.block.BlockPhysicsEvent;
+import org.bukkit.event.block.BlockRedstoneEvent;
 import org.bukkit.event.block.SignChangeEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
-public class BlockChange implements Listener{
+public class BlockListener implements Listener{
     private final Movecraft movecraft;
-    public BlockChange(Movecraft movecraft){
+    public BlockListener(Movecraft movecraft){
         this.movecraft = movecraft;
     }
-    private Set<Craft> breakingblocks = new HashSet<>();
+    private final Set<Craft> breakingblocks = new HashSet<>();
     public void breakBlockMulti(Block block){
         Craft craft = movecraft.getCraft(block);
         if(craft!=null){
@@ -86,7 +89,7 @@ public class BlockChange implements Listener{
         }
     }
     @EventHandler
-    public void onBlockBoom(BlockExplodeEvent event){
+    public void onBlockExplode(BlockExplodeEvent event){
         if(hasWater(event.getBlock().getRelative(-1,0,0))
          ||hasWater(event.getBlock().getRelative(1,0,0))
          ||hasWater(event.getBlock().getRelative(0,-1,0))
@@ -96,8 +99,10 @@ public class BlockChange implements Listener{
             event.setCancelled(true);
             return;
         }
-        if(movecraft.resistances.containsKey(event.getBlock().getType())){
-            if(new Random(event.getBlock().getX() + event.getBlock().getY() + event.getBlock().getZ() + (System.currentTimeMillis() >> 12)).nextFloat()<=movecraft.resistances.get(event.getBlock().getType())){
+        Craft craft = movecraft.getCraft(event.getBlock());
+        HashMap<Material, Float> resistances = Option.BLOCK_RESISTANCE.get(craft);
+        if(resistances.containsKey(event.getBlock().getType())){
+            if(new Random(event.getBlock().getX() + event.getBlock().getY() + event.getBlock().getZ() + (System.currentTimeMillis() >> 12)).nextFloat()<=resistances.get(event.getBlock().getType())){
                 event.setCancelled(true);
                 return;
             }
@@ -105,7 +110,7 @@ public class BlockChange implements Listener{
         breakBlock(event.getBlock());
     }
     @EventHandler
-    public void onEntityBoom(EntityExplodeEvent event){
+    public void onEntityExplode(EntityExplodeEvent event){
         for (Iterator<Block> it = event.blockList().iterator(); it.hasNext();) {
             Block b = it.next();
             if(hasWater(b.getRelative(-1,0,0))
@@ -117,10 +122,14 @@ public class BlockChange implements Listener{
                 it.remove();
                 continue;
             }
-            if(movecraft.resistances.containsKey(b.getType())){
-                if(new Random(b.getX() + b.getY() + b.getZ() + (System.currentTimeMillis() >> 12)).nextFloat()<=movecraft.resistances.get(b.getType())){
-                    it.remove();
-                    continue;
+            Craft craft = movecraft.getCraft(b);
+            HashMap<Material, Float> resistances = Option.BLOCK_RESISTANCE.get(craft);
+            if(resistances!=null){
+                if(resistances.containsKey(b.getType())){
+                    if(new Random(b.getX() + b.getY() + b.getZ() + (System.currentTimeMillis() >> 12)).nextFloat()<=resistances.get(b.getType())){
+                        it.remove();
+                        continue;
+                    }
                 }
             }
             breakBlockMulti(b);
@@ -149,5 +158,32 @@ public class BlockChange implements Listener{
     @EventHandler
     public void onBlockPlace(BlockPlaceEvent event){
         if(!placeBlock(event.getPlayer(), event.getBlockPlaced(), event.getBlockAgainst()))event.setCancelled(true);
+    }
+    
+    @EventHandler
+    public void onBlockMove(BlockMoveEvent event){
+        for(Craft c : Movecraft.instance.crafts){
+            for(Player p : c.aaDirectors){
+                if(c.aaTargets.get(p)==event.getFromBlock()){
+                    c.aaTargets.put(p,event.getToBlock());
+                }
+            }
+            for(Player p : c.cannonDirectors){
+                if(c.cannonTargets.get(p)==event.getFromBlock()){
+                    c.cannonTargets.put(p,event.getToBlock());
+                }
+            }
+        }
+    }
+    
+    @EventHandler
+    public void onButtonPress(BlockRedstoneEvent event){
+        if(event.getBlock().getType().name().contains("BUTTON")){
+            Craft craft = movecraft.getCraft(event.getBlock());
+            if(craft!=null){
+                if(event.getOldCurrent()==0)craft.pressedButtons.add(event.getBlock());
+                if(event.getNewCurrent()==0)craft.pressedButtons.remove(event.getBlock());
+            }
+        }
     }
 }

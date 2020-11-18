@@ -1,4 +1,8 @@
-package com.thizthizzydizzy.movecraft;
+package com.thizthizzydizzy.movecraft.craft;
+import com.thizthizzydizzy.movecraft.Movecraft;
+import com.thizthizzydizzy.movecraft.MovementDetails;
+import com.thizthizzydizzy.movecraft.event.BlockMoveEvent;
+import com.thizthizzydizzy.movecraft.option.Option;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -66,6 +70,7 @@ public class Craft{
     private final Movecraft movecraft;
     public final CraftType type;
     public final Set<Block> blocks;
+    public final Set<Block> pressedButtons = new HashSet<>();
     public Player pilot;
     public ArrayList<Player> copilots = new ArrayList<>();
     public Set<Player> aaDirectors = new HashSet<>();
@@ -278,17 +283,11 @@ public class Craft{
             return;
         }
         if(damageReport>0)damageReportTimer++;
-        if(damageReportTimer>=movecraft.damageTimeout)damageReport = damageReportTimer = 0;
+        if(damageReportTimer>=Option.DAMAGE_REPORT_TIMEOUT.get(this))damageReport = damageReportTimer = 0;
         modeTimer++;
         setMode(NONE);
-        if(movecraft.combatAND){
-            if(copilots.size()+1>=movecraft.combatPilots&&getCrew().size()>=movecraft.combatCrew){
-                setMode(COMBAT);
-            }
-        }else{
-            if(copilots.size()+1>=movecraft.combatPilots||getCrew().size()>=movecraft.combatCrew){
-                setMode(COMBAT);
-            }
+        if(copilots.size()+1>=Option.COMBAT_PILOTS.get(this)||getCrew().size()>=Option.COMBAT_CREW.get(this)){
+            setMode(COMBAT);
         }
         if(isPilotOnBoard()){
             repilotTimer = 0;
@@ -302,7 +301,7 @@ public class Craft{
         if(isUnderwater(true)){
             if(!canDive){
                 involuntaryTimer++;
-                if(involuntaryTimer>=moveTime/Math.max(getMovementDetails().horizDist, getMovementDetails().vertDist)){
+                if(pressedButtons.isEmpty()&&involuntaryTimer>=moveTime/Math.max(getMovementDetails().horizDist, getMovementDetails().vertDist)){
                     if(canFly){
                         move(0, 1, 0, false);
                     }else{
@@ -314,7 +313,7 @@ public class Craft{
         }else{
             if(!canFly){
                 involuntaryTimer++;
-                if(involuntaryTimer>=moveTime/Math.max(getMovementDetails().horizDist, getMovementDetails().vertDist)){
+                if(pressedButtons.isEmpty()&&involuntaryTimer>=moveTime/Math.max(getMovementDetails().horizDist, getMovementDetails().vertDist)){
                     if(!move(0, -1, 0, false))startSinking();
                     involuntaryTimer = 0;
                 }
@@ -324,12 +323,13 @@ public class Craft{
             timer = 0;
         }else{
             timer++;
-            if(timer>=moveTime){
+            if(pressedButtons.isEmpty()&&timer>=moveTime){
                 timer-=moveTime;
                 move();
             }
         }
         if(type.type!=CraftType.CRAFT)return;
+        //<editor-fold defaultstate="collapsed" desc="Actionbars">
         String text = "";
         if(type.flight!=null){
             for(ArrayList<Material> m : type.flight.requiredRatios.keySet()){
@@ -337,8 +337,8 @@ public class Craft{
                 float ratio = type.flight.requiredRatios.get(m);
                 float error = Math.abs((actual-ratio)/ratio);
                 ChatColor color = ChatColor.GREEN;
-                if(error<movecraft.yellowThreshold)color = ChatColor.YELLOW;
-                if(error<movecraft.redThreshold)color = ChatColor.RED;
+                if(error<Option.YELLOW_THRESHOLD.get(this))color = ChatColor.YELLOW;
+                if(error<Option.RED_THRESHOLD.get(this))color = ChatColor.RED;
                 if(actual<ratio)color = ChatColor.DARK_RED;
                 text+=", "+color.toString()+friendlyName(m.get(0))+ChatColor.RESET+": "+percent(actual, 2)+"/"+percent(ratio, 2);
             }
@@ -347,8 +347,8 @@ public class Craft{
                 int blocks = type.flight.requiredBlocks.get(m);
                 float error = Math.abs((actual-blocks)/(float)blocks);
                 ChatColor color = ChatColor.GREEN;
-                if(error<movecraft.yellowThreshold)color = ChatColor.YELLOW;
-                if(error<movecraft.redThreshold)color = ChatColor.RED;
+                if(error<Option.YELLOW_THRESHOLD.get(this))color = ChatColor.YELLOW;
+                if(error<Option.RED_THRESHOLD.get(this))color = ChatColor.RED;
                 if(actual<blocks)color = ChatColor.DARK_RED;
                 text+=", "+color.toString()+friendlyName(m.get(0))+ChatColor.RESET+": "+actual+"/"+blocks;
             }
@@ -359,8 +359,8 @@ public class Craft{
                 float ratio = type.dive.requiredRatios.get(m);
                 float error = Math.abs((actual-ratio)/ratio);
                 ChatColor color = ChatColor.GREEN;
-                if(error<movecraft.yellowThreshold)color = ChatColor.YELLOW;
-                if(error<movecraft.redThreshold)color = ChatColor.RED;
+                if(error<Option.YELLOW_THRESHOLD.get(this))color = ChatColor.YELLOW;
+                if(error<Option.RED_THRESHOLD.get(this))color = ChatColor.RED;
                 if(actual<ratio)color = ChatColor.DARK_RED;
                 text+=", "+color.toString()+friendlyName(m.get(0))+ChatColor.RESET+": "+percent(actual, 2)+"/"+percent(ratio, 2);
             }
@@ -369,8 +369,8 @@ public class Craft{
                 int blocks = type.dive.requiredBlocks.get(m);
                 float error = Math.abs((actual-blocks)/(float)blocks);
                 ChatColor color = ChatColor.GREEN;
-                if(error<movecraft.yellowThreshold)color = ChatColor.YELLOW;
-                if(error<movecraft.redThreshold)color = ChatColor.RED;
+                if(error<Option.YELLOW_THRESHOLD.get(this))color = ChatColor.YELLOW;
+                if(error<Option.RED_THRESHOLD.get(this))color = ChatColor.RED;
                 if(actual<blocks)color = ChatColor.DARK_RED;
                 text+=", "+color.toString()+friendlyName(m.get(0))+ChatColor.RESET+": "+actual+"/"+blocks;
             }
@@ -381,8 +381,8 @@ public class Craft{
                 float ratio = type.dive.requiredEngineRatios.get(m);
                 float error = Math.abs((actual-ratio)/ratio);
                 ChatColor color = ChatColor.GREEN;
-                if(error<movecraft.yellowThreshold)color = ChatColor.YELLOW;
-                if(error<movecraft.redThreshold)color = ChatColor.RED;
+                if(error<Option.YELLOW_THRESHOLD.get(this))color = ChatColor.YELLOW;
+                if(error<Option.RED_THRESHOLD.get(this))color = ChatColor.RED;
                 if(actual<ratio)color = ChatColor.DARK_RED;
                 text+=", "+color.toString()+"Engines- "+friendlyName(m.get(0))+ChatColor.RESET+": "+percent(actual, 2)+"/"+percent(ratio, 2);
             }
@@ -391,8 +391,8 @@ public class Craft{
                 int blocks = type.dive.requiredEngineBlocks.get(m);
                 float error = Math.abs((actual-blocks)/(float)blocks);
                 ChatColor color = ChatColor.GREEN;
-                if(error<movecraft.yellowThreshold)color = ChatColor.YELLOW;
-                if(error<movecraft.redThreshold)color = ChatColor.RED;
+                if(error<Option.YELLOW_THRESHOLD.get(this))color = ChatColor.YELLOW;
+                if(error<Option.RED_THRESHOLD.get(this))color = ChatColor.RED;
                 if(actual<blocks)color = ChatColor.DARK_RED;
                 text+=", "+color.toString()+"Engines- "+friendlyName(m.get(0))+ChatColor.RESET+": "+actual+"/"+blocks;
             }
@@ -402,8 +402,8 @@ public class Craft{
                 float ratio = type.flight.requiredEngineRatios.get(m);
                 float error = Math.abs((actual-ratio)/ratio);
                 ChatColor color = ChatColor.GREEN;
-                if(error<movecraft.yellowThreshold)color = ChatColor.YELLOW;
-                if(error<movecraft.redThreshold)color = ChatColor.RED;
+                if(error<Option.YELLOW_THRESHOLD.get(this))color = ChatColor.YELLOW;
+                if(error<Option.RED_THRESHOLD.get(this))color = ChatColor.RED;
                 if(actual<ratio)color = ChatColor.DARK_RED;
                 text+=", "+color.toString()+"Engines- "+friendlyName(m.get(0))+ChatColor.RESET+": "+percent(actual, 2)+"/"+percent(ratio, 2);
             }
@@ -412,8 +412,8 @@ public class Craft{
                 int blocks = type.flight.requiredEngineBlocks.get(m);
                 float error = Math.abs((actual-blocks)/(float)blocks);
                 ChatColor color = ChatColor.GREEN;
-                if(error<movecraft.yellowThreshold)color = ChatColor.YELLOW;
-                if(error<movecraft.redThreshold)color = ChatColor.RED;
+                if(error<Option.YELLOW_THRESHOLD.get(this))color = ChatColor.YELLOW;
+                if(error<Option.RED_THRESHOLD.get(this))color = ChatColor.RED;
                 if(actual<blocks)color = ChatColor.DARK_RED;
                 text+=", "+color.toString()+"Engines- "+friendlyName(m.get(0))+ChatColor.RESET+": "+actual+"/"+blocks;
             }
@@ -422,8 +422,8 @@ public class Craft{
             case COMBAT:
                 ChatColor color = ChatColor.GREEN;
                 float error = Math.abs((blocks.size()-type.minSize)/(float)type.minSize);
-                if(error<movecraft.yellowThreshold)color = ChatColor.YELLOW;
-                if(error<movecraft.redThreshold)color = ChatColor.RED;
+                if(error<Option.YELLOW_THRESHOLD.get(this))color = ChatColor.YELLOW;
+                if(error<Option.RED_THRESHOLD.get(this))color = ChatColor.RED;
                 text+=", "+type.minSize+"<"+color+blocks.size()+ChatColor.RESET+"<"+type.maxSize;
                 if(!text.isEmpty())text = text.substring(2);
                 if(damageReport>0){
@@ -439,8 +439,8 @@ public class Craft{
                     float ratio = type.bannedRatios.get(m);
                     error = Math.abs((actual-ratio)/ratio);
                     color = ChatColor.GREEN;
-                    if(error<movecraft.yellowThreshold)color = ChatColor.YELLOW;
-                    if(error<movecraft.redThreshold)color = ChatColor.RED;
+                    if(error<Option.YELLOW_THRESHOLD.get(this))color = ChatColor.YELLOW;
+                    if(error<Option.RED_THRESHOLD.get(this))color = ChatColor.RED;
                     if(actual>ratio)color = ChatColor.DARK_RED;
                     text+=", "+color.toString()+friendlyName(m.get(0))+ChatColor.RESET+": "+percent(actual, 2)+"/"+percent(ratio, 2);
                 }
@@ -449,15 +449,15 @@ public class Craft{
                     int limit = type.limitedBlocks.get(m);
                     error = Math.abs((actual-limit)/(float)limit);
                     color = ChatColor.GREEN;
-                    if(error<movecraft.yellowThreshold)color = ChatColor.YELLOW;
-                    if(error<movecraft.redThreshold)color = ChatColor.RED;
+                    if(error<Option.YELLOW_THRESHOLD.get(this))color = ChatColor.YELLOW;
+                    if(error<Option.RED_THRESHOLD.get(this))color = ChatColor.RED;
                     if(actual>limit)color = ChatColor.DARK_RED;
                     text+=", "+color.toString()+friendlyName(m.get(0))+ChatColor.RESET+": "+actual+"/"+limit;
                 }
                 color = ChatColor.GREEN;
                 error = Math.abs((blocks.size()-type.minSize)/(float)type.minSize);
-                if(error<movecraft.yellowThreshold)color = ChatColor.YELLOW;
-                if(error<movecraft.redThreshold)color = ChatColor.RED;
+                if(error<Option.YELLOW_THRESHOLD.get(this))color = ChatColor.YELLOW;
+                if(error<Option.RED_THRESHOLD.get(this))color = ChatColor.RED;
                 text+=", "+type.minSize+"<"+color+blocks.size()+ChatColor.RESET+"<"+type.maxSize;
                 if(!text.isEmpty())text = text.substring(2);
                 actionbarCrew(text);
@@ -484,6 +484,7 @@ public class Craft{
                 actionbar(p, ChatColor.GREEN+"Targeted "+ChatColor.RESET+cannonTargets.get(p).getX()+" "+cannonTargets.get(p).getY()+" "+cannonTargets.get(p).getZ());
             }
         }
+//</editor-fold>
     }
     public void cruise(Direction direction){
         if(cruise==direction){
@@ -719,6 +720,7 @@ public class Craft{
         moving = true;
         for(Block block : blocks){
             if(blocksThatPop.contains(block.getType())){
+                net.minecraft.server.v1_16_R3.World world;
                 block.setType(Material.AIR, false);
             }
         }
@@ -738,6 +740,9 @@ public class Craft{
         }
         for(BlockMovement movement : movements){
             movement.move2(this);
+        }
+        for(BlockMovement movement : movements){
+            movement.callEvent();
         }
         movecraft.debug(pilot, "Moved Ship Blocks");
         moving = false;
@@ -807,7 +812,7 @@ public class Craft{
     private Location getOrigin(){
         return getBoundingBox().getCenter().toLocation(world);
     }
-    BoundingBox getBoundingBox(){
+    public BoundingBox getBoundingBox(){
         if(bbox==null)calculateBoundingBox();
         return bbox;
     }
@@ -944,7 +949,7 @@ public class Craft{
         updateDisabled();
         if(l!=null){
             if(!damaged){
-                playSound(player, l, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, .95f);
+//                playSound(player, l, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, .95f);
             }else{
                 playSound(player, l, Sound.ENTITY_GENERIC_EXPLODE, 2);
             }
@@ -1042,7 +1047,7 @@ public class Craft{
                 return false;
             }
         }
-        playSound(player, block.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f);
+//        playSound(player, block.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f);
         blocks.add(block);
         updateDisabled();
         calculateBoundingBox();
@@ -1531,12 +1536,12 @@ public class Craft{
         if(mode<this.mode){
             switch(this.mode){
                 case CONSTRUCTION:
-                    if(modeTimer>movecraft.constructionTimeout){
+                    if(modeTimer>Option.CONSTRUCTION_TIMEOUT.get(this)){
                         this.mode = mode;
                     }
                     break;
                 case COMBAT:
-                    if(modeTimer>movecraft.combatTimeout){
+                    if(modeTimer>Option.COMBAT_TIMEOUT.get(this)){
                         this.mode = mode;
                     }
                     break;
@@ -1578,7 +1583,7 @@ public class Craft{
         String str = m.toString().replace("WHITE_", "");
         return str.charAt(0)+str.substring(1).toLowerCase();
     }
-    String undock(HashSet<Block> blocks){
+    public String undock(HashSet<Block> blocks){
         HashSet<Block> ship = new HashSet<>(this.blocks);
         ship.removeAll(blocks);
         if(blocks.size()<type.minSize){
@@ -2164,7 +2169,7 @@ public class Craft{
     public double distance(Location l){
         return getOrigin().distance(l);
     }
-    Block getAATarget(Location location, Vector v) {
+    public Block getAATarget(Location location, Vector v) {
         if(aaDirectors.isEmpty())return null;
         Block smallest = null;
         double a = 0;
@@ -2179,11 +2184,11 @@ public class Craft{
         }
         return smallest;
     }
-    Block getAATarget(Player p){
+    public Block getAATarget(Player p){
         if(aaTargets.containsKey(p))return aaTargets.get(p);
         return getTarget(p);
     }
-    Vector getAADirection(Vector vect){
+    public Vector getAADirection(Vector vect){
         if(aaDirectors.isEmpty())return null;
         Vector smallest = null;
         double a = 0;
@@ -2198,7 +2203,7 @@ public class Craft{
         }
         return smallest;
     }
-    Block getCannonTarget(Location location, Vector v) {
+    public Block getCannonTarget(Location location, Vector v) {
         if(cannonDirectors.isEmpty())return null;
         Block smallest = null;
         double a = 0;
@@ -2213,11 +2218,11 @@ public class Craft{
         }
         return smallest;
     }
-    Block getCannonTarget(Player p){
+    public Block getCannonTarget(Player p){
         if(cannonTargets.containsKey(p))return cannonTargets.get(p);
         return getTarget(p);
     }
-    Vector getCannonDirection(Vector vect){
+    public Vector getCannonDirection(Vector vect){
         if(cannonDirectors.isEmpty())return null;
         Vector smallest = null;
         double a = 0;
@@ -2232,7 +2237,7 @@ public class Craft{
         }
         return smallest;
     }
-    Vector getDirection(Player p){
+    public Vector getDirection(Player p){
         if(p.getInventory().getItemInMainHand().getType()==Material.STICK||p.getInventory().getItemInOffHand().getType()==Material.STICK){
             return p.getLocation().getDirection();
         }
@@ -2240,11 +2245,11 @@ public class Craft{
     }
     public Block getTarget(Player p){
         if(p.getInventory().getItemInMainHand().getType()==Material.STICK||p.getInventory().getItemInOffHand().getType()==Material.STICK){
-            RayTraceResult result = p.rayTraceBlocks(movecraft.directorTargetRange, FluidCollisionMode.NEVER);
+            RayTraceResult result = p.rayTraceBlocks(Option.DIRECTOR_TARGET_RANGE.get(this), FluidCollisionMode.NEVER);
             if(result!=null&&result.getHitBlock()!=null&&!blocks.contains(result.getHitBlock())){
                 return result.getHitBlock();
             }
-            Block b = p.getTargetBlock(Movecraft.transparent, movecraft.directorTargetRange);
+            Block b = p.getTargetBlock(Movecraft.transparent, Option.DIRECTOR_TARGET_RANGE.get(this));
             if(!blocks.contains(b))return b;
         }
         return null;
@@ -2277,10 +2282,10 @@ public class Craft{
         }
         movecraft.debug(pilot, "Compiled BlockChanges "+A+" "+B+" "+C);
     }
-    boolean containsBlock(Block block){
+    public boolean containsBlock(Block block){
         return blocks.contains(block);
     }//TODO optimize - this is super laggy on large ships
-    private static class BlockChange implements Comparable<BlockChange>{
+    public static class BlockChange implements Comparable<BlockChange>{
         private final Material type;
         private final BlockData data;
         private final BlockState state;
@@ -2446,10 +2451,10 @@ public class Craft{
             return 0;
         }
     }
-    private static class BlockMovement{
-        private final Location from;
-        private final Location to;
-        private final int rotation;
+    public static class BlockMovement{
+        public final Location from;
+        public final Location to;
+        public final int rotation;
         public BlockMovement(Location from, Location to){
             this(from, to, 0);
         }
@@ -2486,6 +2491,9 @@ public class Craft{
             if(parent.type.children.contains(craft.type)){
                 craft.blocks.add(t);
             }
+        }
+        private void callEvent(){
+            Bukkit.getServer().getPluginManager().callEvent(new BlockMoveEvent(this));
         }
     }
     public static String percent(double d, int decimals){

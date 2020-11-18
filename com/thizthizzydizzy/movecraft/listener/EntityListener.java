@@ -1,12 +1,12 @@
-package com.thizthizzydizzy.movecraft.event;
-import com.thizthizzydizzy.movecraft.Craft;
+package com.thizthizzydizzy.movecraft.listener;
+import com.thizthizzydizzy.movecraft.craft.Craft;
 import com.thizthizzydizzy.movecraft.Movecraft;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntitySpawnEvent;
-public class MobSpawn implements Listener{
+public class EntityListener implements Listener{
     private final Movecraft movecraft;
-    public MobSpawn(Movecraft movecraft){
+    public EntityListener(Movecraft movecraft){
         this.movecraft = movecraft;
     }
     @EventHandler

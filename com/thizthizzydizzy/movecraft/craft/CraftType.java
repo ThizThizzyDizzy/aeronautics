@@ -1,4 +1,6 @@
-package com.thizthizzydizzy.movecraft;
+package com.thizthizzydizzy.movecraft.craft;
+import com.thizthizzydizzy.movecraft.Movecraft;
+import com.thizthizzydizzy.movecraft.MovementDetails;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -18,8 +20,12 @@ public class CraftType{
     public static final int CRAFT = 0;
     public static final int SUBCRAFT = 1;
     public static final int PROJECTILE = 2;
-    Set<CraftType> children = new HashSet<>();
-    Set<String> tempChildren = new HashSet<>();
+    public Set<CraftType> children = new HashSet<>();
+    /**
+     * @deprecated This is only used during initalization. use <code>children</code> instead!
+     */
+    @Deprecated
+    public Set<String> tempChildren = new HashSet<>();
     public MovementDetails flight = null;
     public MovementDetails dive = null;
     public HashMap<Material, Integer> fuels = new HashMap<>();

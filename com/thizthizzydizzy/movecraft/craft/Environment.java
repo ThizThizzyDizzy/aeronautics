@@ -1,4 +1,4 @@
-package com.thizthizzydizzy.movecraft;
+package com.thizthizzydizzy.movecraft.craft;
 public enum Environment{
     AIR,UNDERWATER,WATER,LAND;
     public static Environment match(String str){

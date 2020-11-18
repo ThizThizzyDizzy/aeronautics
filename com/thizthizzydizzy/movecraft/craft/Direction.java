@@ -1,4 +1,4 @@
-package com.thizthizzydizzy.movecraft;
+package com.thizthizzydizzy.movecraft.craft;
 import org.bukkit.block.BlockFace;
 public enum Direction{
     NORTH(0,0,-1),

@@ -1,18 +1,22 @@
-package com.thizthizzydizzy.movecraft.event;
-import com.thizthizzydizzy.movecraft.Craft;
-import com.thizthizzydizzy.movecraft.CraftSign;
+package com.thizthizzydizzy.movecraft.listener;
+import com.thizthizzydizzy.movecraft.craft.Craft;
+import com.thizthizzydizzy.movecraft.craft.CraftSign;
+import com.thizthizzydizzy.movecraft.craft.Direction;
 import com.thizthizzydizzy.movecraft.Movecraft;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.Sign;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
-public class PlayerInteract implements Listener{
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+public class PlayerListener implements Listener{
     private final Movecraft movecraft;
-    public PlayerInteract(Movecraft movecraft){
+    public PlayerListener(Movecraft movecraft){
         this.movecraft = movecraft;
     }
     @EventHandler
@@ -52,15 +56,32 @@ public class PlayerInteract implements Listener{
                 }
             }
         }
-        if(event.getAction()!=Action.RIGHT_CLICK_BLOCK&&event.getAction()!=Action.LEFT_CLICK_BLOCK)return;
-        Block block = event.getClickedBlock();
-        if(Movecraft.Tags.isSign(block.getType())){
-            //HOLY COW IT'S A SIGN
-            Sign s = (Sign) block.getState();
-            CraftSign sign = CraftSign.getSign(s);
-            if(sign!=null){
-                if(sign.canRespond(event.getAction()))sign.click(movecraft, s, event);
+        if(event.getAction()==Action.RIGHT_CLICK_BLOCK||event.getAction()==Action.LEFT_CLICK_BLOCK){
+            Block block = event.getClickedBlock();
+            if(Movecraft.Tags.isSign(block.getType())){
+                //HOLY COW IT'S A SIGN
+                Sign s = (Sign) block.getState();
+                CraftSign sign = CraftSign.getSign(s);
+                if(sign!=null){
+                    if(sign.canRespond(event.getAction()))sign.click(movecraft, s, event);
+                }
             }
         }
+    }
+    @EventHandler
+    public void onLeave(PlayerQuitEvent event){
+        Player player = event.getPlayer();
+        movecraft.clearCopilot(player);
+        Craft craft = movecraft.getCraft(player);
+        if(craft!=null){
+            if(!craft.repilot()){
+                craft.cruise = Direction.NONE;
+            }
+        }
+    }
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event){
+        Player player = event.getPlayer();
+        movecraft.playerJoined(player);
     }
 }

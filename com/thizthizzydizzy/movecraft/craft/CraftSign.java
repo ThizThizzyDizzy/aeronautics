@@ -1,4 +1,5 @@
-package com.thizthizzydizzy.movecraft;
+package com.thizthizzydizzy.movecraft.craft;
+import com.thizthizzydizzy.movecraft.Movecraft;
 import java.util.ArrayList;
 import org.bukkit.block.Block;
 import org.bukkit.block.Sign;

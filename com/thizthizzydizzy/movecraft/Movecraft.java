@@ -1,3 +1,7 @@
+//TODO buttons stick when ships move
+//TODO signs that are holding water can still be destroyed when their holding block is popped
+//todo something to do with detection lag
+
 //TODO Skiff launches and moving with other crafts
 //TODO /cruise, /release, /pilot, etc.
 //TODO ship structural integrity bossbar, showing how close to death the ship is from before it took the first bit of damage (disappears when ship is repiloted, or after ship exits combat)
@@ -13,10 +17,15 @@
             The LOWEST of these numbers is displayed on the bossbar
 */
 package com.thizthizzydizzy.movecraft;
-import com.thizthizzydizzy.movecraft.event.BlockChange;
-import com.thizthizzydizzy.movecraft.event.MobSpawn;
-import com.thizthizzydizzy.movecraft.event.PlayerEvent;
-import com.thizthizzydizzy.movecraft.event.PlayerInteract;
+import com.thizthizzydizzy.movecraft.craft.Direction;
+import com.thizthizzydizzy.movecraft.command.CommandMovecraft;
+import com.thizthizzydizzy.movecraft.craft.CraftType;
+import com.thizthizzydizzy.movecraft.craft.Craft;
+import com.thizthizzydizzy.movecraft.listener.BlockListener;
+import com.thizthizzydizzy.movecraft.listener.EntityListener;
+import com.thizthizzydizzy.movecraft.listener.PlayerListener;
+import com.thizthizzydizzy.movecraft.option.Option;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -38,22 +47,21 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.SmallFireball;
 import org.bukkit.entity.TNTPrimed;
+import org.bukkit.permissions.Permission;
 import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 public class Movecraft extends JavaPlugin{
     public static final String[] helm = {"\\  |  /","-       -","/  |  \\"};
-    public ArrayList<Craft> sinking = new ArrayList<>();
     public static Movecraft instance;
-    public boolean debug = false;
     private static final ArrayList<String> movements = new ArrayList<>();
     static{
         movements.add("fly");
         movements.add("dive");
     }
-    public double fireballAngleLimit;
     public static final Set<Material> transparent = new HashSet<>();
     static{
         transparent.add(Material.AIR);
@@ -70,163 +78,234 @@ public class Movecraft extends JavaPlugin{
         transparent.addAll(getBlocks("stairs"));
         transparent.addAll(getBlocks("sign"));
     }
-    public int directorTargetRange;
-    public double tntAngleLimit;
-    public void rotateSubcraft(CraftType type, Player player, Block sign, int amount, String name){
-        Craft parent = getCraft(sign);
-        Craft craft = detect(type, player, sign);
-        if(craft!=null){
-            if(!craft.checkCrew(player))return;
-            if(parent!=null){
-                if(!parent.checkCrew(player))return;
-                parent.rotateSubcraft(craft, player, sign, amount, name);
-            }else{
-                craft.rotateAbout(sign.getLocation(), amount);
-            }
-        }
-    }
-    public Craft getCraft(Location location){
-        for(Craft craft : crafts){
-            if(craft.getBoundingBox().contains(location.toVector()))return craft;
-        }
-        return null;
-    }
-    public void clearCopilot(Player player){
-        for(Craft craft : crafts){
-            craft.copilots.remove(player);
-        }
-    }
-    void clearDirector(Player player){
-        for(Craft craft : crafts){
-            craft.aaDirectors.remove(player);
-            craft.cannonDirectors.remove(player);
-        }
-    }
-    public void playerJoined(Player player){
-        for(Craft craft : crafts){
-            if(craft.pilot.getUniqueId().equals(player.getUniqueId()))craft.pilot = player;
-        }
-    }
-    public void launchProjectile(CraftType projectile, Player player, Block sign){
-        Craft craft = detect(projectile, player, sign);
-        if(craft==null)return;
-        debug(player, "Launching projectile");
-        if(craft.getYSize()>1){
-            player.sendMessage("Projectile too tall!\nProjectiles must be 1x1!");
-            return;
-        }
-        if(((WallSign)sign.getBlockData()).getFacing().getModX()!=0){
-            if(craft.getZSize()>1){
-                player.sendMessage("Projectile too wide!\nProjectiles must be 1x1!");
-                return;
-            }
-        }else{
-            if(craft.getXSize()>1){
-                player.sendMessage("Projectile too wide!\nProjectiles must be 1x1!");
-                return;
-            }
-        }
-        craft.fuel = projectile.fuel;
-        Direction direction = Direction.fromBlockFace(((WallSign)sign.getBlockData()).getFacing().getOppositeFace());
-        debug(player, "Launched projectile heading "+direction.toString());
-        craft.cruise(direction);
-    }
-    public void reload() {
-    }
-    public boolean placeBlock(Player player, Block block, Block against) {
-        Craft craft = getCraft(against);
-        if(craft!=null){
-            if(!craft.checkCrew(player))return false;
-            return craft.addBlock(player, block, false);
-        }
-        return true;
-    }
-    public static class Tags{
-        public static Set<Material> signs = new HashSet<>();
-        public static Set<Material> wool = new HashSet<>();
-        public static boolean isSign(Material mat){
-            if(mat==null)return false;
-            return signs.contains(mat);
-        }
-        public static boolean isWool(Material mat){
-            if(mat==null)return false;
-            return wool.contains(mat);
-        }
-        static{
-            signs.add(Material.OAK_SIGN);
-            signs.add(Material.BIRCH_SIGN);
-            signs.add(Material.SPRUCE_SIGN);
-            signs.add(Material.JUNGLE_SIGN);
-            signs.add(Material.ACACIA_SIGN);
-            signs.add(Material.DARK_OAK_SIGN);
-            signs.add(Material.OAK_WALL_SIGN);
-            signs.add(Material.BIRCH_WALL_SIGN);
-            signs.add(Material.SPRUCE_WALL_SIGN);
-            signs.add(Material.JUNGLE_WALL_SIGN);
-            signs.add(Material.ACACIA_WALL_SIGN);
-            signs.add(Material.DARK_OAK_WALL_SIGN);
-            wool.add(Material.WHITE_WOOL);
-            wool.add(Material.RED_WOOL);
-            wool.add(Material.ORANGE_WOOL);
-            wool.add(Material.YELLOW_WOOL);
-            wool.add(Material.GREEN_WOOL);
-            wool.add(Material.LIME_WOOL);
-            wool.add(Material.BLUE_WOOL);
-            wool.add(Material.MAGENTA_WOOL);
-            wool.add(Material.PURPLE_WOOL);
-            wool.add(Material.PINK_WOOL);
-            wool.add(Material.BLACK_WOOL);
-            wool.add(Material.BROWN_WOOL);
-            wool.add(Material.LIGHT_GRAY_WOOL);
-            wool.add(Material.LIGHT_BLUE_WOOL);
-            wool.add(Material.GRAY_WOOL);
-            wool.add(Material.CYAN_WOOL);
-        }
-    }
+    public boolean debug = false;
     public ArrayList<CraftType> craftTypes = new ArrayList<>();
     public ArrayList<CraftType> subcraftTypes = new ArrayList<>();
     public ArrayList<Craft> crafts = new ArrayList<>();
     public ArrayList<Craft> tickingCrafts = new ArrayList<>();
     public ArrayList<Craft> projectiles = new ArrayList<>();
-    public int constructionTimeout,combatTimeout,combatPilots,combatCrew,damageTimeout;
-    public boolean combatAND,combatBossbar;
-    public double redThreshold,yellowThreshold,tntThreshold;
-    private int fireballLifespan;
-    public HashMap<Material, Float> resistances = new HashMap<>();
-    public HashMap<SmallFireball, Integer> fireballs = new HashMap<>();
-    public HashMap<SmallFireball, Vector> velocities = new HashMap<>();
-    public HashMap<TNTPrimed, Double> tnts = new HashMap<>();
-    public ArrayList<BlockMoveListener> listeners = new ArrayList<>();
-    public void onMove(Block from, Block to){
-        for(Craft c : crafts){
-            for(Player p : c.aaDirectors){
-                if(c.aaTargets.get(p)==from){
-                    c.aaTargets.put(p,to);
-                }
-            }
-            for(Player p : c.cannonDirectors){
-                if(c.cannonTargets.get(p)==from){
-                    c.cannonTargets.put(p,to);
-                }
-            }
-        }
-    }
+    public ArrayList<Craft> sinking = new ArrayList<>();
+    public ArrayList<TrackedFireball> fireballs = new ArrayList<>();
+    public ArrayList<TrackedTNT> tnts = new ArrayList<>();
+    private BukkitTask tickLoop;
     public void onEnable(){
         instance = this;
         PluginDescriptionFile pdfFile = getDescription();
         Logger logger = getLogger();
         //<editor-fold defaultstate="collapsed" desc="Register Events">
         PluginManager pm = getServer().getPluginManager();
-        pm.registerEvents(new PlayerInteract(this), this);
-        pm.registerEvents(new BlockChange(this), this);
-        pm.registerEvents(new MobSpawn(this), this);
-        pm.registerEvents(new PlayerEvent(this), this);
+        pm.registerEvents(new BlockListener(this), this);
+        pm.registerEvents(new EntityListener(this), this);
+        pm.registerEvents(new PlayerListener(this), this);
 //</editor-fold>
         //<editor-fold defaultstate="collapsed" desc="Register Config">
         saveDefaultConfig();
         getConfig().options().copyDefaults(true);
 //</editor-fold>
-        //<editor-fold defaultstate="collapsed" desc="Loading Config">
+        tickLoop = new BukkitRunnable(){
+            @Override
+            public void run(){
+                //<editor-fold defaultstate="collapsed" desc="AA/cannon directors">
+                for (World w : getServer().getWorlds()) {
+                    if(w==null||w.getPlayers().isEmpty())continue;
+                    //<editor-fold defaultstate="collapsed" desc="AA directors">
+                    for(SmallFireball fireball : w.getEntitiesByClass(SmallFireball.class)){
+                        if(!(fireball.getShooter() instanceof LivingEntity)){
+                            boolean found = false;
+                            for(TrackedFireball tracked : fireballs){
+                                if(tracked.fireball==fireball){
+                                    found = true;
+                                    break;
+                                }
+                            }
+                            if(!found){
+                                Craft craft = getNearestCraft(fireball.getLocation());
+                                if(craft!=null){
+                                    Block b = craft.getAATarget(fireball.getLocation(), fireball.getVelocity());
+                                    Vector targetVector = craft.getAADirection(fireball.getVelocity());
+                                    if(b!=null||targetVector!=null){
+                                        debug(craft.pilot, "Directing fireball!");
+                                        Vector aaVel = fireball.getVelocity();
+                                        double speed = aaVel.length();
+                                        debug(craft.pilot, "Old speed: "+speed);
+                                        aaVel = aaVel.normalize();
+                                        if(b!=null)targetVector = b.getLocation().toVector().subtract(fireball.getLocation().toVector()).normalize();
+                                        if(targetVector.getX() - aaVel.getX() > Option.FIREBALL_ANGLE.get(craft)){
+                                            aaVel.setX(aaVel.getX() + Option.FIREBALL_ANGLE.get(craft));
+                                        }else if(targetVector.getX() - aaVel.getX() < -Option.FIREBALL_ANGLE.get(craft)){
+                                            aaVel.setX(aaVel.getX() - Option.FIREBALL_ANGLE.get(craft));
+                                        }else{
+                                            aaVel.setX(targetVector.getX());
+                                        }
+                                        if(targetVector.getY() - aaVel.getY() > Option.FIREBALL_ANGLE.get(craft)){
+                                            aaVel.setY(aaVel.getY() + Option.FIREBALL_ANGLE.get(craft));
+                                        }else if(targetVector.getY() - aaVel.getY() < -Option.FIREBALL_ANGLE.get(craft)){
+                                            aaVel.setY(aaVel.getY() - Option.FIREBALL_ANGLE.get(craft));
+                                        }else{
+                                            aaVel.setY(targetVector.getY());
+                                        }
+                                        if(targetVector.getZ() - aaVel.getZ() > Option.FIREBALL_ANGLE.get(craft)){
+                                            aaVel.setZ(aaVel.getZ() + Option.FIREBALL_ANGLE.get(craft));
+                                        }else if(targetVector.getZ() - aaVel.getZ() < -Option.FIREBALL_ANGLE.get(craft)){
+                                            aaVel.setZ(aaVel.getZ() - Option.FIREBALL_ANGLE.get(craft));
+                                        }else{
+                                            aaVel.setZ(targetVector.getZ());
+                                        }
+                                        fireball.setDirection(aaVel.normalize().multiply(fireball.getDirection().length()));
+                                    }
+                                }
+                                fireballs.add(new TrackedFireball(fireball, 0, fireball.getVelocity(), craft.type));
+                            }
+                        }
+                    }
+//</editor-fold>
+                    //<editor-fold defaultstate="collapsed" desc="Cannon directors">
+                    for(TNTPrimed tnt : w.getEntitiesByClass(TNTPrimed.class)){
+                        boolean found = false;
+                        for(TrackedTNT tracked : tnts){
+                            if(tracked.tnt==tnt){
+                                found = true;
+                                break;
+                            }
+                        }
+                        if(found||tnt.getVelocity().lengthSquared()<=.35)continue;
+                        Craft craft = getNearestCraft(tnt.getLocation());
+                        tnts.add(new TrackedTNT(tnt, tnt.getVelocity().lengthSquared(), 0, craft.type));
+                        if(craft==null)continue;
+                        debug(craft.pilot, "Tracking new TNT: "+tnt.getVelocity().lengthSquared());
+                        Block b = craft.getCannonTarget(tnt.getLocation(), tnt.getVelocity());
+                        Vector targetVector = craft.getCannonDirection(tnt.getVelocity());
+                        if(b!=null||targetVector!=null){
+                            Vector tntVel = tnt.getVelocity();
+                            double speed = tntVel.length();
+                            tntVel = tntVel.normalize();
+                            if(b!=null)targetVector = b.getLocation().toVector().subtract(tnt.getLocation().toVector()).normalize();
+                            if(targetVector.getX() - tntVel.getX() > Option.TNT_ANGLE.get(craft)){
+                                tntVel.setX(tntVel.getX() + Option.TNT_ANGLE.get(craft));
+                            }else if(targetVector.getX() - tntVel.getX() < -Option.TNT_ANGLE.get(craft)){
+                                tntVel.setX(tntVel.getX() - Option.TNT_ANGLE.get(craft));
+                            }else{
+                                tntVel.setX(targetVector.getX());
+                            }
+                            if(targetVector.getY() - tntVel.getY() > Option.TNT_ANGLE.get(craft)){
+                                tntVel.setY(tntVel.getY() + Option.TNT_ANGLE.get(craft));
+                            }else if(targetVector.getY() - tntVel.getY() < -Option.TNT_ANGLE.get(craft)){
+                                tntVel.setY(tntVel.getY() - Option.TNT_ANGLE.get(craft));
+                            }else{
+                                tntVel.setY(targetVector.getY());
+                            }
+                            if(targetVector.getZ() - tntVel.getZ() > Option.TNT_ANGLE.get(craft)){
+                                tntVel.setZ(tntVel.getZ() + Option.TNT_ANGLE.get(craft));
+                            }else if(targetVector.getZ() - tntVel.getZ() < -Option.TNT_ANGLE.get(craft)){
+                                tntVel.setZ(tntVel.getZ() - Option.TNT_ANGLE.get(craft));
+                            }else{
+                                tntVel.setZ(targetVector.getZ());
+                            }
+                            tntVel = tntVel.multiply(speed);
+                            tntVel.setY(tnt.getVelocity().getY());
+                            tnt.setVelocity(tntVel);
+                        }
+                    }
+                    //</editor-fold>
+                }
+//</editor-fold>
+                //<editor-fold defaultstate="collapsed" desc="Velocity-based TNT explosions">
+                for(Iterator<TrackedTNT> it = tnts.iterator(); it.hasNext();){
+                    TrackedTNT tracked = it.next();
+                    TNTPrimed tnt = tracked.tnt;
+                    if(tnt.getFuseTicks()<=0){
+                        if(Option.TRACER_EXPLOSION.get(tracked.craftType)!=null)createGhostBlock(tnt.getLocation(), Option.TRACER_EXPLOSION.get(tracked.craftType), Option.TRACER_EXPLOSION_TIME.get(tracked.craftType));
+                        it.remove();
+                        continue;
+                    }
+                    double vel = tnt.getVelocity().lengthSquared();
+                    if(Option.TRACER_STREAM.get(tracked.craftType)!=null){
+                        if(vel>Math.pow(Option.TRACER_VELOCITY_THRESHOLD.get(tracked.craftType),2)){
+                            Integer nextTracer = tracked.tracerTimer;
+                            if(nextTracer==null||nextTracer<=-1)nextTracer = Option.TRACER_INTERVAL.get(tracked.craftType);
+                            if(nextTracer<=0){
+                                createGhostBlock(tnt.getLocation(), Option.TRACER_STREAM.get(tracked.craftType), Option.TRACER_STREAM_TIME.get(tracked.craftType));
+                            }
+                            tracked.tracerTimer = nextTracer-1;
+                        }
+                    }
+                    if(vel<tracked.velocitySquared/10&&tracked.velocitySquared>.35){
+                        tnt.setFuseTicks(0);
+                        debug(null, "Exploding TNT: "+vel+" "+tracked.velocitySquared);
+                    }else{
+                        tracked.velocitySquared = vel;
+                    }
+                }
+                //</editor-fold>
+                //<editor-fold defaultstate="collapsed" desc="Killing dead fireballs">
+                for(Iterator<TrackedFireball> it = fireballs.iterator(); it.hasNext();){
+                    TrackedFireball tracked = it.next();
+                    SmallFireball fireball = tracked.fireball;
+                    if(fireball.isDead()){
+                        it.remove();
+                        continue;
+                    }
+                    if(fireball.getDirection().length()>0.5){
+                        Vector diff = fireball.getVelocity().subtract(tracked.velocity);
+                        fireball.setVelocity(tracked.velocity.add(diff.multiply(.1)));
+                        tracked.velocity = fireball.getVelocity();
+                    }
+                    tracked.despawnTimer++;
+                    if(tracked.despawnTimer>Option.FIREBALL_LIFESPAN.get(tracked.craftType)){
+                        fireball.remove();
+                        it.remove();
+                    }
+                }
+                //</editor-fold>
+                //<editor-fold defaultstate="collapsed" desc="Ticking crafts">
+                for(Iterator<Craft> it = tickingCrafts.iterator(); it.hasNext();){
+                    Craft c = it.next();
+                    if(c.notTickingAnymore)it.remove();
+                    c.tick();
+                } //</editor-fold>
+            }
+        }.runTaskTimer(this, 1, 1);
+        pm.addPermission(new Permission("movecraft.reload"));
+        pm.addPermission(new Permission("movecraft.debug"));
+        getCommand("movecraft").setExecutor(new CommandMovecraft(this));
+        logger.log(Level.INFO, "{0} has been enabled! (Version {1}) by ThizThizzyDizzy", new Object[]{pdfFile.getName(), pdfFile.getVersion()});
+        reload();//load config
+        HashMap<Material, Float> resistances = Option.BLOCK_RESISTANCE_OVERRIDE.getValue();
+        if(resistances!=null){
+            for(Material m : resistances.keySet()){
+                try{
+                    Field block = net.minecraft.server.v1_16_R3.Blocks.class.getDeclaredField(m.name());
+                    block.setAccessible(true);
+                    Field field = net.minecraft.server.v1_16_R3.BlockBase.class.getDeclaredField("durability");
+                    field.setAccessible(true);
+                    field.set(block.get(null), 1.8f);
+                }catch(NoSuchFieldException|SecurityException|IllegalArgumentException|IllegalAccessException ex){
+                    Logger.getLogger(Movecraft.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+        }
+    }
+    public void onDisable(){
+        tickLoop.cancel();
+        PluginDescriptionFile pdfFile = getDescription();
+        Logger logger = getLogger();
+        logger.log(Level.INFO, "{0} has been disabled! (Version {1}) by ThizThizzyDizzy", new Object[]{pdfFile.getName(), pdfFile.getVersion()});
+    }
+    public void reload(){
+        for(Craft c : crafts){
+            c.release();
+        }
+        for(Craft c : projectiles){
+            c.release();
+        }
+        craftTypes.clear();
+        subcraftTypes.clear();
+        crafts.clear();
+        tickingCrafts.clear();
+        projectiles.clear();
+        sinking.clear();
+        //<editor-fold defaultstate="collapsed" desc="Loading Crafts">
+        //<editor-fold defaultstate="collapsed" desc="Crafts">
         ArrayList<Object> l = (ArrayList<Object>)getConfig().getList("crafts");
         for(Object o : l){
             LinkedHashMap craft = (LinkedHashMap)o;
@@ -234,7 +313,7 @@ public class Movecraft extends JavaPlugin{
             type.minSize = (int) craft.get("min-size");
             type.maxSize = (int) craft.get("max-size");
             if(craft.containsKey("fuels")){
-            ArrayList<Object> fuels = (ArrayList<Object>)craft.get("fuels");
+                ArrayList<Object> fuels = (ArrayList<Object>)craft.get("fuels");
                 for(Object ob : fuels){
                     LinkedHashMap f = (LinkedHashMap)ob;
                     type.fuels.put(Material.matchMaterial((String)f.get("item")), (int)f.get("value"));
@@ -302,38 +381,21 @@ public class Movecraft extends JavaPlugin{
                     }else type.limitBlock((String)b.get("block"), (int)required);
                 }
             }
-            craftTypes.add(type);
-        }
-        constructionTimeout = getConfig().getInt("construction-timeout");
-        combatTimeout = getConfig().getInt("combat-timeout");
-        combatPilots = getConfig().getInt("combat-pilots");
-        combatCrew = getConfig().getInt("combat-crew");
-        combatAND = getConfig().getString("combat-mode").trim().equalsIgnoreCase("and");
-        combatBossbar = getConfig().getBoolean("combat-bossbar");
-        damageTimeout = getConfig().getInt("damage-report-timeout");
-        yellowThreshold = getConfig().getDouble("yellow-threshold");
-        redThreshold = getConfig().getDouble("red-threshold");
-        tntThreshold = getConfig().getDouble("tnt-threshold");
-        fireballLifespan = getConfig().getInt("fireball-lifespan");
-        fireballAngleLimit = getConfig().getDouble("fireball-angle");
-        tntAngleLimit = getConfig().getDouble("tnt-angle");
-        directorTargetRange = getConfig().getInt("director-target-range");
-        if(getConfig().contains("block-resistance")){
-            ArrayList<Object> rs = (ArrayList<Object>)getConfig().get("block-resistance");
-            for(Object ob : rs){
-                LinkedHashMap b = (LinkedHashMap)ob;
-                Object required = b.get("resistance");
-                if(required instanceof Double){
-                    for(Material m : getBlocks((String)b.get("block"))){
-                        resistances.put(m,((Number)required).floatValue());
-                    }
-                }else{
-                    for(Material m : getBlocks((String)b.get("block"))){
-                        resistances.put(m,((Number)required).intValue()/100f);
+            for(Object key : craft.keySet()){
+                if(key instanceof String){
+                    String str = ((String)key).toLowerCase().replace("-", "").replace("_", "").replace(" ", "");
+                    for(Option option : Option.options){
+                        if(!option.craft)continue;
+                        if(option.getLocalName().equals(str)){
+                            option.setValue(type, option.load(craft.get(key)));
+                        }
                     }
                 }
             }
+            craftTypes.add(type);
         }
+//</editor-fold>
+        //<editor-fold defaultstate="collapsed" desc="Craft Children">
         for(CraftType type : craftTypes){
             for(String child : type.tempChildren){
                 for(CraftType possible : craftTypes){
@@ -345,6 +407,8 @@ public class Movecraft extends JavaPlugin{
             }
             type.tempChildren.clear();
         }
+//</editor-fold>
+        //<editor-fold defaultstate="collapsed" desc="Subcrafts">
         l = (ArrayList<Object>)getConfig().getList("subcrafts");
         for(Object o : l){
             LinkedHashMap craft = (LinkedHashMap)o;
@@ -381,6 +445,8 @@ public class Movecraft extends JavaPlugin{
             }
             subcraftTypes.add(type);
         }
+//</editor-fold>
+        //<editor-fold defaultstate="collapsed" desc="Projectiles">
         l = (ArrayList<Object>)getConfig().getList("projectiles");
         for(Object o : l){
             LinkedHashMap craft = (LinkedHashMap)o;
@@ -457,150 +523,90 @@ public class Movecraft extends JavaPlugin{
             craftTypes.add(type);
         }
 //</editor-fold>
-        new BukkitRunnable(){
-            @Override
-            public void run(){
-                //<editor-fold defaultstate="collapsed" desc="AA/cannon directors">
-                for (World w : getServer().getWorlds()) {
-                    if(w==null||w.getPlayers().isEmpty())continue;
-                    //<editor-fold defaultstate="collapsed" desc="AA directors">
-                    for(SmallFireball fireball : w.getEntitiesByClass(SmallFireball.class)){
-                        if(!(fireball.getShooter() instanceof LivingEntity)){
-                            if(!fireballs.containsKey(fireball)){
-                                Craft c = getNearestCraft(fireball.getLocation());
-                                if(c!=null){
-                                    Block b = c.getAATarget(fireball.getLocation(), fireball.getVelocity());
-                                    Vector targetVector = c.getAADirection(fireball.getVelocity());
-                                    if(b!=null||targetVector!=null){
-                                        debug(c.pilot, "Directing fireball!");
-                                        Vector aaVel = fireball.getVelocity();
-                                        double speed = aaVel.length();
-                                        debug(c.pilot, "Old speed: "+speed);
-                                        aaVel = aaVel.normalize();
-                                        if(b!=null)targetVector = b.getLocation().toVector().subtract(fireball.getLocation().toVector()).normalize();
-                                        if(targetVector.getX() - aaVel.getX() > fireballAngleLimit){
-                                            aaVel.setX(aaVel.getX() + fireballAngleLimit);
-                                        }else if(targetVector.getX() - aaVel.getX() < -fireballAngleLimit){
-                                            aaVel.setX(aaVel.getX() - fireballAngleLimit);
-                                        }else{
-                                            aaVel.setX(targetVector.getX());
-                                        }
-                                        if(targetVector.getY() - aaVel.getY() > fireballAngleLimit){
-                                            aaVel.setY(aaVel.getY() + fireballAngleLimit);
-                                        }else if(targetVector.getY() - aaVel.getY() < -fireballAngleLimit){
-                                            aaVel.setY(aaVel.getY() - fireballAngleLimit);
-                                        }else{
-                                            aaVel.setY(targetVector.getY());
-                                        }
-                                        if(targetVector.getZ() - aaVel.getZ() > fireballAngleLimit){
-                                            aaVel.setZ(aaVel.getZ() + fireballAngleLimit);
-                                        }else if(targetVector.getZ() - aaVel.getZ() < -fireballAngleLimit){
-                                            aaVel.setZ(aaVel.getZ() - fireballAngleLimit);
-                                        }else{
-                                            aaVel.setZ(targetVector.getZ());
-                                        }
-                                        fireball.setDirection(aaVel.normalize().multiply(fireball.getDirection().length()));
-                                    }
-                                }
-                                fireballs.put(fireball, 0);
-                                velocities.put(fireball, fireball.getVelocity());
-                            }
-                        }
-                    }
 //</editor-fold>
-                    //<editor-fold defaultstate="collapsed" desc="Cannon directors">
-                    for(TNTPrimed tnt : w.getEntitiesByClass(TNTPrimed.class)){
-                        if(tnts.containsKey(tnt)||tnt.getVelocity().lengthSquared()<=.35)continue;
-                        Craft c = getNearestCraft(tnt.getLocation());
-                        tnts.put(tnt, tnt.getVelocity().lengthSquared());
-                        if(c==null)continue;
-                        debug(c.pilot, "Tracking new TNT: "+tnt.getVelocity().lengthSquared());
-                        Block b = c.getCannonTarget(tnt.getLocation(), tnt.getVelocity());
-                        Vector targetVector = c.getCannonDirection(tnt.getVelocity());
-                        if(b!=null||targetVector!=null){
-                            Vector tntVel = tnt.getVelocity();
-                            double speed = tntVel.length();
-                            tntVel = tntVel.normalize();
-                            if(b!=null)targetVector = b.getLocation().toVector().subtract(tnt.getLocation().toVector()).normalize();
-                            if(targetVector.getX() - tntVel.getX() > tntAngleLimit){
-                                tntVel.setX(tntVel.getX() + tntAngleLimit);
-                            }else if(targetVector.getX() - tntVel.getX() < -tntAngleLimit){
-                                tntVel.setX(tntVel.getX() - tntAngleLimit);
-                            }else{
-                                tntVel.setX(targetVector.getX());
-                            }
-                            if(targetVector.getY() - tntVel.getY() > tntAngleLimit){
-                                tntVel.setY(tntVel.getY() + tntAngleLimit);
-                            }else if(targetVector.getY() - tntVel.getY() < -tntAngleLimit){
-                                tntVel.setY(tntVel.getY() - tntAngleLimit);
-                            }else{
-                                tntVel.setY(targetVector.getY());
-                            }
-                            if(targetVector.getZ() - tntVel.getZ() > tntAngleLimit){
-                                tntVel.setZ(tntVel.getZ() + tntAngleLimit);
-                            }else if(targetVector.getZ() - tntVel.getZ() < -tntAngleLimit){
-                                tntVel.setZ(tntVel.getZ() - tntAngleLimit);
-                            }else{
-                                tntVel.setZ(targetVector.getZ());
-                            }
-                            tntVel = tntVel.multiply(speed);
-                            tntVel.setY(tnt.getVelocity().getY());
-                            tnt.setVelocity(tntVel);
-                        }
-                    }
-                    //</editor-fold>
-                }
-//</editor-fold>
-                //<editor-fold defaultstate="collapsed" desc="Velocity-based TNT explosions">
-                for(Iterator<TNTPrimed> it = tnts.keySet().iterator(); it.hasNext();){
-                    TNTPrimed tnt = it.next();
-                    if(tnt.getFuseTicks()<=0){
-                        it.remove();
-                        continue;
-                    }
-                    double vel = tnt.getVelocity().lengthSquared();
-                    if(vel<tnts.get(tnt)/10&&tnts.get(tnt)>.35){
-                        tnt.setFuseTicks(0);
-                        debug(null, "Exploding TNT: "+vel+" "+tnts.get(tnt));
-                    }else{
-                        tnts.put(tnt, vel);
-                    }
-                }
-                //</editor-fold>
-                //<editor-fold defaultstate="collapsed" desc="Killing dead fireballs">
-                for(Iterator it = fireballs.keySet().iterator(); it.hasNext();){
-                    SmallFireball f = (SmallFireball)it.next();
-                    if(f.isDead()){
-                        it.remove();
-                        continue;
-                    }
-                    if(f.getDirection().length()>0.5){
-                        Vector diff = f.getVelocity().subtract(velocities.get(f));
-                        f.setVelocity(velocities.get(f).add(diff.multiply(.1)));
-                        velocities.put(f, f.getVelocity());
-                    }
-                    fireballs.put(f, fireballs.get(f)+1);
-                    if(fireballs.get(f)>fireballLifespan){
-                        f.remove();
-                        it.remove();
-                    }
-                }
-                //</editor-fold>
-                //<editor-fold defaultstate="collapsed" desc="Ticking crafts">
-                for(Iterator<Craft> it = tickingCrafts.iterator(); it.hasNext();){
-                    Craft c = it.next();
-                    if(c.notTickingAnymore)it.remove();
-                    c.tick();
-                } //</editor-fold>
-            }
-        }.runTaskTimer(this, 1, 1);
-        getCommand("movecraft").setExecutor(new CommandMovecraft(this));
-        logger.log(Level.INFO, "{0} has been enabled! (Version {1}) by ThizThizzyDizzy", new Object[]{pdfFile.getName(), pdfFile.getVersion()});
+        for(Option option : Option.options){
+            if(option.global)option.setValue(option.loadFromConfig(getConfig()));
+        }
     }
-    public void onDisable(){
-        PluginDescriptionFile pdfFile = getDescription();
-        Logger logger = getLogger();
-        logger.log(Level.INFO, "{0} has been disabled! (Version {1}) by ThizThizzyDizzy", new Object[]{pdfFile.getName(), pdfFile.getVersion()});
+    public void rotateSubcraft(CraftType type, Player player, Block sign, int amount, String name){
+        Craft parent = getCraft(sign);
+        Craft craft = detect(type, player, sign);
+        if(craft!=null){
+            if(!craft.checkCrew(player))return;
+            if(parent!=null){
+                if(!parent.checkCrew(player))return;
+                parent.rotateSubcraft(craft, player, sign, amount, name);
+            }else{
+                craft.rotateAbout(sign.getLocation(), amount);
+            }
+        }
+    }
+    public Craft getCraft(Location location){
+        for(Craft craft : crafts){
+            if(craft.getBoundingBox().contains(location.toVector()))return craft;
+        }
+        return null;
+    }
+    public void clearCopilot(Player player){
+        for(Craft craft : crafts){
+            craft.copilots.remove(player);
+        }
+    }
+    public void clearDirector(Player player){
+        for(Craft craft : crafts){
+            craft.aaDirectors.remove(player);
+            craft.cannonDirectors.remove(player);
+        }
+    }
+    public void playerJoined(Player player){
+        for(Craft craft : crafts){
+            if(craft.pilot.getUniqueId().equals(player.getUniqueId()))craft.pilot = player;
+        }
+    }
+    public void launchProjectile(CraftType projectile, Player player, Block sign){
+        Craft craft = detect(projectile, player, sign);
+        if(craft==null)return;
+        debug(player, "Launching projectile");
+        if(craft.getYSize()>1){
+            player.sendMessage("Projectile too tall!\nProjectiles must be 1x1!");
+            return;
+        }
+        if(((WallSign)sign.getBlockData()).getFacing().getModX()!=0){
+            if(craft.getZSize()>1){
+                player.sendMessage("Projectile too wide!\nProjectiles must be 1x1!");
+                return;
+            }
+        }else{
+            if(craft.getXSize()>1){
+                player.sendMessage("Projectile too wide!\nProjectiles must be 1x1!");
+                return;
+            }
+        }
+        craft.fuel = projectile.fuel;
+        Direction direction = Direction.fromBlockFace(((WallSign)sign.getBlockData()).getFacing().getOppositeFace());
+        debug(player, "Launched projectile heading "+direction.toString());
+        craft.cruise(direction);
+    }
+    public boolean placeBlock(Player player, Block block, Block against) {
+        Craft craft = getCraft(against);
+        if(craft!=null){
+            if(!craft.checkCrew(player))return false;
+            return craft.addBlock(player, block, false);
+        }
+        return true;
+    }
+    private void createGhostBlock(Location l, Material m, long time){
+        for(Player p : getServer().getOnlinePlayers()){
+            if(p.getWorld()!=l.getWorld())continue;
+            BlockData data = l.getWorld().getBlockAt(l).getBlockData();
+            p.sendBlockChange(l, m.createBlockData());
+            new BukkitRunnable() {
+                @Override
+                public void run(){
+                    p.sendBlockChange(l, data);
+                }
+            }.runTaskLater(this, time);
+        }
     }
     public static ArrayList<Material> getBlocks(Object object){
         ArrayList<Material> theBlocks = new ArrayList<>();
@@ -956,13 +962,6 @@ public class Movecraft extends JavaPlugin{
         }
         return results;
     }
-    private int getTotal(HashMap<Integer, ArrayList<Block>> blocks){
-        int total = 0;
-        for(int i : blocks.keySet()){
-            total+=blocks.get(i).size();
-        }
-        return total;
-    }
     private ArrayList<Block> toList(HashMap<Integer, ArrayList<Block>> blocks){
         ArrayList<Block> list = new ArrayList<>();
         for(int i : blocks.keySet()){
@@ -1079,10 +1078,70 @@ public class Movecraft extends JavaPlugin{
         if(success)debug(player, "[Movecraft] "+(critical?ChatColor.DARK_GREEN:ChatColor.GREEN)+"O"+ChatColor.RESET+" "+text);
         else debug(player, "[Movecraft] "+(critical?ChatColor.DARK_RED:ChatColor.RED)+"X"+ChatColor.RESET+" "+text);
     }
-    public void addBlockMoveListener(BlockMoveListener listener){
-        listeners.add(listener);
+    public static class Tags{
+        public static Set<Material> signs = new HashSet<>();
+        public static Set<Material> wool = new HashSet<>();
+        public static boolean isSign(Material mat){
+            if(mat==null)return false;
+            return signs.contains(mat);
+        }
+        public static boolean isWool(Material mat){
+            if(mat==null)return false;
+            return wool.contains(mat);
+        }
+        static{
+            signs.add(Material.OAK_SIGN);
+            signs.add(Material.BIRCH_SIGN);
+            signs.add(Material.SPRUCE_SIGN);
+            signs.add(Material.JUNGLE_SIGN);
+            signs.add(Material.ACACIA_SIGN);
+            signs.add(Material.DARK_OAK_SIGN);
+            signs.add(Material.OAK_WALL_SIGN);
+            signs.add(Material.BIRCH_WALL_SIGN);
+            signs.add(Material.SPRUCE_WALL_SIGN);
+            signs.add(Material.JUNGLE_WALL_SIGN);
+            signs.add(Material.ACACIA_WALL_SIGN);
+            signs.add(Material.DARK_OAK_WALL_SIGN);
+            wool.add(Material.WHITE_WOOL);
+            wool.add(Material.RED_WOOL);
+            wool.add(Material.ORANGE_WOOL);
+            wool.add(Material.YELLOW_WOOL);
+            wool.add(Material.GREEN_WOOL);
+            wool.add(Material.LIME_WOOL);
+            wool.add(Material.BLUE_WOOL);
+            wool.add(Material.MAGENTA_WOOL);
+            wool.add(Material.PURPLE_WOOL);
+            wool.add(Material.PINK_WOOL);
+            wool.add(Material.BLACK_WOOL);
+            wool.add(Material.BROWN_WOOL);
+            wool.add(Material.LIGHT_GRAY_WOOL);
+            wool.add(Material.LIGHT_BLUE_WOOL);
+            wool.add(Material.GRAY_WOOL);
+            wool.add(Material.CYAN_WOOL);
+        }
     }
-    public void removeBlockMoveListener(BlockMoveListener listener){
-        listeners.remove(listener);
+    public static class TrackedFireball{
+        public final SmallFireball fireball;
+        public int despawnTimer;
+        public Vector velocity;
+        public CraftType craftType;
+        public TrackedFireball(SmallFireball fireball, int something, Vector velocity, CraftType craftType){
+            this.fireball = fireball;
+            this.despawnTimer = something;
+            this.velocity = velocity;
+            this.craftType = craftType;
+        }
+    }
+    public static class TrackedTNT{
+        public final TNTPrimed tnt;
+        public double velocitySquared;
+        public int tracerTimer;
+        public CraftType craftType;
+        public TrackedTNT(TNTPrimed tnt, double velocitySquared, int somethingTracer, CraftType craftType){
+            this.tnt = tnt;
+            this.velocitySquared = velocitySquared;
+            this.tracerTimer = somethingTracer;
+            this.craftType = craftType;
+        }
     }
 }
