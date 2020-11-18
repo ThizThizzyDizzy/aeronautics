@@ -8,13 +8,14 @@ Completed features:
 - In-flight modification of ships
 - Ship control via cruise, Ascend/Descend, and helm signs
 - Maneuvering
-
-Planned features:
+- Copilots
 - TNT explode on impact
 - Cannon/AA Directors
+- Torpedoes
+
+Planned features:
 - Direct control mode
 - Contacts
 - Crew sign
 - Status sign
-- Remote sign
-- Torpedoes
+- A bunch more too
