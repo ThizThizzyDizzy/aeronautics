@@ -1,0 +1,224 @@
+{
+    "name": "Airship",
+    "minSize": 500,
+    "maxSize": 20000,
+    "engines": [
+        {
+            "type": "movecraft:air",
+            "fuels": [
+                {
+                    "item": "minecraft:coal",
+                    "value": 40
+                },
+                {
+                    "item": "minecraft:charcoal",
+                    "value": 40
+                },
+                {
+                    "item": "minecraft:coal_block",
+                    "value": 400
+                }
+            ],
+            "moveTime": 36,
+            "horizMoveDistance": 4,
+            "vertMoveDistance": 2,
+            "liftBlocks": [
+                {
+                    "block": "#minecraft:wool",
+                    "required": 0.5
+                }
+            ],
+            "engines": [
+                {
+                    "block": "minecraft:redstone_block",
+                    "required": 0.01
+                }
+            ]
+        }
+    ],
+    "specials": [
+        {
+            "type": "movecraft:fire_charge_lifespan",
+            "time": 100,
+        },
+        {
+            "type": "movecraft:fire_charge_director",
+            "name": "AA Director",
+            "targetRange": 192,
+            "angle": 0.5
+        },
+        {
+            "type": "movecraft:tnt_director",
+            "name": "Cannon Director",
+            "targetRange": 192,
+            "angle": 0.7
+        },
+        {
+            "type": "movecraft:block_resistance",
+            "resistances": [
+                {
+                    "block": "minecraft:end_stone",
+                    "resistance": 0.31
+                },
+                {
+                    "block": "minecraft:end_stone_brick",
+                    "resistance": 0.31
+                }
+            ]
+        },
+        {
+            "type": "movecraft:tnt_tracer",
+            "trail": {
+                "block": "minecraft:cobweb",
+                "time": 50
+            },
+            "explosion": {
+                "block": "minecraft:glowstone",
+                "time": 50
+            },
+            "interval": 5,
+            "velocityThreshold": 0.6
+        }
+    ],
+    "allowedBlocks": [
+        "minecraft:iron_bars",
+        "minecraft:fire",
+        "#minecraft:wool",
+        "#minecraft:stairs",
+        "#minecraft:slabs",
+        "#minecraft:planks",
+        "minecraft:ladder",
+        "#minecraft:fences",
+        "minecraft:chiseled_stone_bricks",
+        "minecraft:water",
+        "minecraft:lava",
+        "minecraft:dispenser",
+        "minecraft:note_block",
+        "minecraft:piston",
+        "minecraft:tnt",
+        "minecraft:lever",
+        "#minecraft:pressure_plates",
+        "minecraft:redstone_torch",
+        "#minecraft:buttons",
+        "#minecraft:trapdoors",
+        "#minecraft:fence_gates",
+        "minecraft:redstone_lamp",
+        "minecraft:tripwire_hook",
+        "minecraft:tripwire",
+        "minecraft:chest",
+        "minecraft:daylight_sensor",
+        "minecraft:redstone_block",
+        "minecraft:hopper",
+        "minecraft:dropper",
+        "minecraft:observer",
+        "#minecraft:doors",
+        "minecraft:repeater",
+        "minecraft:comparator",
+        "minecraft:redstone_wire",
+        "minecraft:lectern",
+        "#minecraft:beds",
+        "minecraft:crafting_table",
+        "minecraft:enchanter",
+        "minecraft:ender_chest",
+        "minecraft:bookshelf",
+        "minecraft:glass",
+        "minecraft:white_stained_glass",
+        "minecraft:orange_stained_glass",
+        "minecraft:magenta_stained_glass",
+        "minecraft:light_blue_stained_glass",
+        "minecraft:yellow_stained_glass",
+        "minecraft:lime_stained_glass",
+        "minecraft:pink_stained_glass",
+        "minecraft:gray_stained_glass",
+        "minecraft:light_gray_stained_glass",
+        "minecraft:cyan_stained_glass",
+        "minecraft:purple_stained_glass",
+        "minecraft:blue_stained_glass",
+        "minecraft:brown_stained_glass",
+        "minecraft:green_stained_glass",
+        "minecraft:red_stained_glass",
+        "minecraft:black_stained_glass",
+        "minecraft:glass_pane",
+        "minecraft:white_stained_glass_pane",
+        "minecraft:orange_stained_glass_pane",
+        "minecraft:magenta_stained_glass_pane",
+        "minecraft:light_blue_stained_glass_pane",
+        "minecraft:yellow_stained_glass_pane",
+        "minecraft:lime_stained_glass_pane",
+        "minecraft:pink_stained_glass_pane",
+        "minecraft:gray_stained_glass_pane",
+        "minecraft:light_gray_stained_glass_pane",
+        "minecraft:cyan_stained_glass_pane",
+        "minecraft:purple_stained_glass_pane",
+        "minecraft:blue_stained_glass_pane",
+        "minecraft:brown_stained_glass_pane",
+        "minecraft:green_stained_glass_pane",
+        "minecraft:red_stained_glass_pane",
+        "minecraft:black_stained_glass_pane",
+        "#minecraft:carpets",
+        "minecraft:loom",
+        "minecraft:barrel",
+        "minecraft:smoker",
+        "minecraft:blast_furnace",
+        "minecraft:furnace",
+        "minecraft:cartography_table",
+        "minecraft:fletching_table",
+        "minecraft:grindstone",
+        "minecraft:smithing_table",
+        "minecraft:stonecutter",
+        "minecraft:bell",
+        "minecraft:lantern",
+        "minecraft:torch",
+        "minecraft:glowstone",
+        "minecraft:end_rod",
+        "minecraft:sea_pickle",
+        "#minecraft:walls",
+        "#minecraft:signs",
+        "minecraft:player_head",
+        "minecraft:zombie_head",
+        "minecraft:creeper_head",
+        "minecraft:dragon_head",
+        "minecraft:skeleton_skull",
+        "minecraft:wither_skeleton_skull",
+        "minecraft:lapis_block",
+        "minecraft:gold_block",
+        "minecraft:iron_block",
+        "minecraft:diamond_block",
+        "minecraft:quartz_block",
+        "minecraft:purpur_block",
+        "minecraft:emerald_block",
+        "minecraft:chiseled_quartz_block",
+        "minecraft:smooth_quartz",
+        "minecraft:obsidian",
+        "minecraft:end_stone",
+        "minecraft:end_stone_brick",
+        "minecraft:nether_brick",
+        "minecraft:terracotta",
+        "minecraft:white_terracotta",
+        "minecraft:orange_terracotta",
+        "minecraft:magenta_terracotta",
+        "minecraft:light_blue_terracotta",
+        "minecraft:yellow_terracotta",
+        "minecraft:lime_terracotta",
+        "minecraft:pink_terracotta",
+        "minecraft:gray_terracotta",
+        "minecraft:light_gray_terracotta",
+        "minecraft:cyan_terracotta",
+        "minecraft:purple_terracotta",
+        "minecraft:blue_terracotta",
+        "minecraft:brown_terracotta",
+        "minecraft:green_terracotta",
+        "minecraft:red_terracotta",
+        "minecraft:black_terracotta",
+        "minecraft:stone_bricks"
+    ],
+    "bannedBlocks":[
+        "minecraft:cobblestone",
+        "minecraft:cobblestone_stairs",
+        "minecraft:cobblestone_slab",
+        "minecraft:dark_oak_stairs",
+        "minecraft:dark_oak_slab",
+        "minecraft:dark_oak_fence",
+        "minecraft:dark_oak_planks"
+    ]
+}
