@@ -1,0 +1,4 @@
+main: com.thizthizzydizzy.movecraft.Movecraft
+version: 0
+api-version: 1.16
+name: Movecraft
