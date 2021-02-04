@@ -1,10 +1,11 @@
 {
-    "name": "Airship",
+    "name": "movecraft:airship",
+    "displayName": "Airship",
     "minSize": 500,
     "maxSize": 20000,
     "engines": [
         {
-            "type": "movecraft:air",
+            "type": "movecraft:airship",
             "fuels": [
                 {
                     "item": "minecraft:coal",
@@ -22,7 +23,7 @@
             "moveTime": 36,
             "horizMoveDistance": 4,
             "vertMoveDistance": 2,
-            "liftBlocks": [
+            "lift": [
                 {
                     "block": "#minecraft:wool",
                     "required": 0.5
@@ -44,13 +45,13 @@
         {
             "type": "movecraft:fire_charge_director",
             "name": "AA Director",
-            "targetRange": 192,
+            "range": 192,
             "angle": 0.5
         },
         {
             "type": "movecraft:tnt_director",
             "name": "Cannon Director",
-            "targetRange": 192,
+            "range": 192,
             "angle": 0.7
         },
         {
@@ -68,7 +69,7 @@
         },
         {
             "type": "movecraft:tnt_tracer",
-            "trail": {
+            "tracer": {
                 "block": "minecraft:cobweb",
                 "time": 50
             },
