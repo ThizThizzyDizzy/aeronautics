@@ -3,8 +3,8 @@ import com.thizthizzydizzy.movecraft.JSON;
 import com.thizthizzydizzy.movecraft.JSON.JSONArray;
 import com.thizthizzydizzy.movecraft.JSON.JSONObject;
 import com.thizthizzydizzy.movecraft.craft.CraftType;
-import com.thizthizzydizzy.movecraft.craft.engine.Engine;
-import com.thizthizzydizzy.movecraft.craft.special.Special;
+import com.thizthizzydizzy.movecraft.engine.Engine;
+import com.thizthizzydizzy.movecraft.special.Special;
 import java.io.File;
 import java.util.ArrayList;
 import org.bukkit.Bukkit;
@@ -55,6 +55,12 @@ public abstract class FileFormat{
                             type.allowedBlocks.add(Material.matchMaterial(block));
                         }
                     }
+                }else{
+                    for(Material m : Material.values()){
+                        if(m.isBlock()&&!m.isLegacy()){
+                            type.allowedBlocks.add(m);
+                        }
+                    }
                 }
                 if(json.hasJSONArray("bannedBlocks")){
                     JSONArray bannedBlocks = json.getJSONArray("bannedBlocks");
@@ -73,6 +79,7 @@ public abstract class FileFormat{
                         }
                     }
                 }
+                if(json.hasInt("sinkMoveTime"))type.sinkMoveTime = json.getInt("sinkMoveTime");
                 return type;
             }
         });

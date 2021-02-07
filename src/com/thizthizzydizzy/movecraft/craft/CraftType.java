@@ -1,18 +1,20 @@
 package com.thizthizzydizzy.movecraft.craft;
-import com.thizthizzydizzy.movecraft.craft.engine.Engine;
-import com.thizthizzydizzy.movecraft.craft.special.Special;
+import com.thizthizzydizzy.movecraft.engine.Engine;
+import com.thizthizzydizzy.movecraft.special.Special;
 import java.util.ArrayList;
 import java.util.HashSet;
 import org.bukkit.Material;
+import org.bukkit.block.Block;
 public class CraftType{
     private final String name;
     private String displayName;
-    private final int minSize;
-    private final int maxSize;
+    public final int minSize;
+    public final int maxSize;
     public ArrayList<Engine> engines = new ArrayList<>();
     public ArrayList<Special> specials = new ArrayList<>();
     public HashSet<Material> allowedBlocks = new HashSet<>();
     public HashSet<Material> bannedBlocks = new HashSet<>();
+    public int sinkMoveTime = 10;
     public CraftType(String name, int minSize, int maxSize){
         this.name = name;
         this.minSize = minSize;
@@ -26,5 +28,18 @@ public class CraftType{
     }
     public String getDisplayName(){
         return displayName==null?name:displayName;
+    }
+    public String checkValid(HashSet<Block> craft){
+        if(craft.size()<minSize)return "Craft too small! ("+craft.size()+"<"+minSize+")";
+        if(craft.size()>maxSize)return "Craft too large! ("+craft.size()+">"+maxSize+")";
+        for(Engine engine : engines){
+            String error = engine.checkValid(craft);
+            if(error!=null)return error;
+        }
+        for(Special special : specials){
+            String error = special.checkValid(craft);
+            if(error!=null)return error;
+        }
+        return null;
     }
 }

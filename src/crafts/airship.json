@@ -3,9 +3,14 @@
     "displayName": "Airship",
     "minSize": 500,
     "maxSize": 20000,
+    "sinkMoveTime": 18,
     "engines": [
         {
             "type": "movecraft:airship",
+            "moveTime": 36,
+            "horizMoveDistance": 4,
+            "vertMoveDistance": 2,
+            "maneuverItem": "minecraft:stick",
             "fuels": [
                 {
                     "item": "minecraft:coal",
@@ -20,13 +25,16 @@
                     "value": 400
                 }
             ],
-            "moveTime": 36,
-            "horizMoveDistance": 4,
-            "vertMoveDistance": 2,
             "lift": [
                 {
                     "block": "#minecraft:wool",
                     "required": 0.5
+                }
+            ],
+            "dive": [
+                {
+                    "block": "minecraft:iron_block",
+                    "required": 0.2
                 }
             ],
             "engines": [
@@ -40,19 +48,109 @@
     "specials": [
         {
             "type": "movecraft:fire_charge_lifespan",
-            "time": 100,
+            "time": 100
         },
         {
             "type": "movecraft:fire_charge_director",
             "name": "AA Director",
             "range": 192,
-            "angle": 0.5
+            "angle": 0.5,
+            "item": "minecraft:stick",
+            "transparent":[
+                "minecraft:glass",
+                "minecraft:white_stained_glass",
+                "minecraft:orange_stained_glass",
+                "minecraft:magenta_stained_glass",
+                "minecraft:light_blue_stained_glass",
+                "minecraft:yellow_stained_glass",
+                "minecraft:lime_stained_glass",
+                "minecraft:pink_stained_glass",
+                "minecraft:gray_stained_glass",
+                "minecraft:light_gray_stained_glass",
+                "minecraft:cyan_stained_glass",
+                "minecraft:purple_stained_glass",
+                "minecraft:blue_stained_glass",
+                "minecraft:brown_stained_glass",
+                "minecraft:green_stained_glass",
+                "minecraft:red_stained_glass",
+                "minecraft:black_stained_glass",
+                "minecraft:glass_pane",
+                "minecraft:white_stained_glass_pane",
+                "minecraft:orange_stained_glass_pane",
+                "minecraft:magenta_stained_glass_pane",
+                "minecraft:light_blue_stained_glass_pane",
+                "minecraft:yellow_stained_glass_pane",
+                "minecraft:lime_stained_glass_pane",
+                "minecraft:pink_stained_glass_pane",
+                "minecraft:gray_stained_glass_pane",
+                "minecraft:light_gray_stained_glass_pane",
+                "minecraft:cyan_stained_glass_pane",
+                "minecraft:purple_stained_glass_pane",
+                "minecraft:blue_stained_glass_pane",
+                "minecraft:brown_stained_glass_pane",
+                "minecraft:green_stained_glass_pane",
+                "minecraft:red_stained_glass_pane",
+                "minecraft:black_stained_glass_pane",
+                "minecraft:iron_bars",
+                "minecraft:redstone_wire",
+                "minecraft:lever",
+                "#minecraft:buttons",
+                "#minecraft:signs"
+            ]
+        },
+        {
+            "type": "movecraft:tnt_impact_detonation",
+            "slowdownFactor": 0.1,
+            "squareVelocityThreshold": 0.35
         },
         {
             "type": "movecraft:tnt_director",
             "name": "Cannon Director",
+            "squareVelocityThreshold": 0.35
             "range": 192,
-            "angle": 0.7
+            "angle": 0.7,
+            "item": "minecraft:stick",
+            "transparent":[
+                "minecraft:glass",
+                "minecraft:white_stained_glass",
+                "minecraft:orange_stained_glass",
+                "minecraft:magenta_stained_glass",
+                "minecraft:light_blue_stained_glass",
+                "minecraft:yellow_stained_glass",
+                "minecraft:lime_stained_glass",
+                "minecraft:pink_stained_glass",
+                "minecraft:gray_stained_glass",
+                "minecraft:light_gray_stained_glass",
+                "minecraft:cyan_stained_glass",
+                "minecraft:purple_stained_glass",
+                "minecraft:blue_stained_glass",
+                "minecraft:brown_stained_glass",
+                "minecraft:green_stained_glass",
+                "minecraft:red_stained_glass",
+                "minecraft:black_stained_glass",
+                "minecraft:glass_pane",
+                "minecraft:white_stained_glass_pane",
+                "minecraft:orange_stained_glass_pane",
+                "minecraft:magenta_stained_glass_pane",
+                "minecraft:light_blue_stained_glass_pane",
+                "minecraft:yellow_stained_glass_pane",
+                "minecraft:lime_stained_glass_pane",
+                "minecraft:pink_stained_glass_pane",
+                "minecraft:gray_stained_glass_pane",
+                "minecraft:light_gray_stained_glass_pane",
+                "minecraft:cyan_stained_glass_pane",
+                "minecraft:purple_stained_glass_pane",
+                "minecraft:blue_stained_glass_pane",
+                "minecraft:brown_stained_glass_pane",
+                "minecraft:green_stained_glass_pane",
+                "minecraft:red_stained_glass_pane",
+                "minecraft:black_stained_glass_pane",
+                "minecraft:iron_bars",
+                "minecraft:redstone_wire",
+                "minecraft:lever",
+                "#minecraft:buttons",
+                "#minecraft:signs"
+            ]
         },
         {
             "type": "movecraft:block_resistance",
@@ -78,7 +176,13 @@
                 "time": 50
             },
             "interval": 5,
-            "velocityThreshold": 0.6
+            "squareVelocityThreshold": 0.35
+        },
+        {
+            "type": "movecraft:spill_protection"
+        },
+        {
+            "type": "movecraft:mob_spawn_protection"
         }
     ],
     "allowedBlocks": [
