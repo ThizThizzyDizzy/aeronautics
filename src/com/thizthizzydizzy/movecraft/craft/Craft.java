@@ -1113,7 +1113,7 @@ public class Craft{
         movecraft.debug(pilots, "Got Movable blocks");
         return movable;
     }
-    private int getWaterLevel(){
+    public int getWaterLevel(){
         Set<Block> outsideBlocks = new HashSet<>();
         Set<Block> outerHull = new HashSet<>();
         Set<Block> innerShip = new HashSet<>();

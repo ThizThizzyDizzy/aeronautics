@@ -35,6 +35,7 @@ public class AirshipEngine extends Engine{
     private Integer horizMoveDistance;
     private Integer vertMoveDistance;
     private Material maneuverItem;
+    private double floatThreshold = .75;
     public AirshipEngine(){
         super("movecraft:standard");
     }
@@ -122,6 +123,7 @@ public class AirshipEngine extends Engine{
             }
         }
         maneuverItem = Material.matchMaterial(json.getString("maneuverItem"));
+        if(json.hasDouble("floatThreshold"))floatThreshold = json.getDouble("floatThreshold");
     }
     @Override
     protected void createSigns(ArrayList<CraftSign> signs){
@@ -309,20 +311,21 @@ public class AirshipEngine extends Engine{
         if((int)engine.get("maneuverCooldown")>0){
             engine.set("maneuverCooldown", (int)engine.get("maneuverCooldown")-1);
         }
-        if(!diveBlocks.isEmpty()&&engine.getCraft().isUnderwater(true)){
-            if(!canDive(engine)){
-                engine.set("involuntaryTimer", (int)engine.get("involuntaryTimer")+1);
-                if((int)engine.get("involuntaryTimer")>=moveTime/Math.max(horizMoveDistance, vertMoveDistance)){
-                    if(canFly(engine)){
-                        move(engine, 0, 1, 0, false);
-                    }else{
-                        if(!move(engine, 0, -1, 0, false))engine.getCraft().startSinking();
-                    }
-                    engine.set("involuntaryTimer", 0);
+        if(!diveBlocks.isEmpty()&&!canDive(engine)&&engine.getCraft().isUnderwater(true)){
+            engine.set("involuntaryTimer", (int)engine.get("involuntaryTimer")+1);
+            if((int)engine.get("involuntaryTimer")>=moveTime/Math.max(horizMoveDistance, vertMoveDistance)){
+                if(canFly(engine)){
+                    move(engine, 0, 1, 0, false);
+                }else{
+                    if(!move(engine, 0, -1, 0, false))engine.getCraft().startSinking();
                 }
+                engine.set("involuntaryTimer", 0);
             }
-        }else{
-            if(!canFly(engine)){
+        }
+        if(!diveBlocks.isEmpty()&&!canFly(engine)){
+            int waterLevel = engine.getCraft().getWaterLevel();
+            double percent = (waterLevel-engine.getCraft().getBoundingBox().getMinY())/engine.getCraft().getBoundingBox().getMaxY();
+            if(percent<floatThreshold){
                 engine.set("involuntaryTimer", (int)engine.get("involuntaryTimer")+1);
                 if((int)engine.get("involuntaryTimer")>=moveTime/Math.max(horizMoveDistance, vertMoveDistance)){
                     if(!move(engine, 0, -1, 0, false))engine.getCraft().startSinking();
