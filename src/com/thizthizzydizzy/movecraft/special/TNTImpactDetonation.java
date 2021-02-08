@@ -19,7 +19,7 @@ public class TNTImpactDetonation extends Special{
     private float squareVelocityThreshold;
     private float slowdownFactor;
     public TNTImpactDetonation(){
-        super("movecraft:tnt_tracer");
+        super("movecraft:tnt_impact_detonation");
     }
     @Override
     protected void load(JSON.JSONObject json){

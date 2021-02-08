@@ -11,7 +11,7 @@ import org.bukkit.event.Event;
 public abstract class Engine{
     private static ArrayList<Engine> engines = new ArrayList<>();
     public static void init(){
-        engines.add(new AirshipEngine());
+        engines.add(new StandardEngine());
     }
     public static void createSigns(){
         for(Engine e : engines){

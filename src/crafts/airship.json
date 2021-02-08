@@ -6,7 +6,7 @@
     "sinkMoveTime": 18,
     "engines": [
         {
-            "type": "movecraft:airship",
+            "type": "movecraft:standard",
             "moveTime": 36,
             "horizMoveDistance": 4,
             "vertMoveDistance": 2,

@@ -37,7 +37,7 @@ public abstract class CraftSign{
                     //pilot new craft
                     movecraft.debug(event.getPlayer(), "Attempting to pilot "+name);
                     Craft newCraft = movecraft.detect(piloting, event.getPlayer(), sign.getBlock());
-                    if(newCraft.canPilot(event.getPlayer())){
+                    if(newCraft!=null&&newCraft.canPilot(event.getPlayer())){
                         newCraft.addPilot(event.getPlayer());
                         movecraft.addCraft(newCraft);
                     }

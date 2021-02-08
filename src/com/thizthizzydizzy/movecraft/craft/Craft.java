@@ -150,6 +150,7 @@ public class Craft{
     }
     public boolean isCrew(Player player){
         if(pilots.isEmpty()&&allowedPilots.isEmpty())return true;
+        if(isPilot(player))return true;
         for(String s : crew){
             if(s.equalsIgnoreCase(player.getName())){
                 return true;
@@ -167,8 +168,9 @@ public class Craft{
         if(sighs==null){
             sighs = new HashSet<>();
             for(Block b : blocks){
-                if(b.getState() instanceof Sign){
-                    sighs.add((Sign)b);
+                BlockState state = b.getState();
+                if(state instanceof Sign){
+                    sighs.add((Sign)state);
                 }
             }
             recalcCrew();
@@ -669,7 +671,7 @@ public class Craft{
         }
         return 0;
     }
-    private Location getOrigin(){
+    public Location getOrigin(){
         return getBoundingBox().getCenter().toLocation(world);
     }
     public BoundingBox getBoundingBox(){
@@ -1208,7 +1210,7 @@ public class Craft{
         if(moving){
             return false;
         }
-        if(type.bannedBlocks.contains(block.getType())){
+        if(type.bannedBlocks.contains(block.getType())||!type.allowedBlocks.contains(block.getType())){
             notifyBlockChange(player, block.getType()+" is not allowed on this craft!");
             return false;
         }
@@ -1239,6 +1241,25 @@ public class Craft{
     public void notifyBlockChange(Player player, String message){
         if(player==null)notifyCrew(message);
         else player.sendMessage(message);
+    }
+    public boolean rotate(Location origin, int rotation, boolean allowUnderwater){
+        origin.setX(Math.round(origin.getX()));
+        origin.setY(Math.round(origin.getY()));
+        origin.setZ(Math.round(origin.getZ()));
+        while(rotation>=4)rotation-=4;
+        while(rotation<0)rotation+=4;
+        ArrayList<BlockMovement> movements = new ArrayList<>();
+        for(Block block : getMovableBlocks()){
+            movements.add(new BlockMovement(block.getLocation(), rotate(block.getLocation(), origin, rotation), rotation));
+        }
+        Iterable<Entity> entities = move(movements, allowUnderwater, false);
+        if(entities==null)return false;
+        for(Entity e : entities){
+            Location l = e.getLocation();
+            l.setYaw(l.getYaw()+90*rotation);
+            e.teleport(l, PlayerTeleportEvent.TeleportCause.PLUGIN);
+        }
+        return true;
     }
     public static class BlockChange implements Comparable<BlockChange>{
         private final Material type;

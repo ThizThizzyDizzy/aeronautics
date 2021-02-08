@@ -52,12 +52,12 @@ public class FireChargeDirector extends Special{
                     Iterable<Tag<Material>> tags = Bukkit.getTags(Tag.REGISTRY_BLOCKS, Material.class);
                     for(Tag<Material> tag : tags){
                         if(tag.getKey().toString().equals(block.substring(1))){
-                            transparent.addAll(tag.getValues());
+                            this.transparent.addAll(tag.getValues());
                             break;
                         }
                     }
                 }else{
-                    transparent.add(Material.matchMaterial(block));
+                    this.transparent.add(Material.matchMaterial(block));
                 }
             }
         }

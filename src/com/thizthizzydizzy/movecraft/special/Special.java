@@ -18,6 +18,7 @@ public abstract class Special{
         specials.add(new TNTTracer());
         specials.add(new SpillProtection());
         specials.add(new TNTImpactDetonation());
+        specials.add(new MobSpawnProtection());
     }
     public static void createSigns(){
         for(Special s : specials){

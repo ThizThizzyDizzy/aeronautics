@@ -4,6 +4,7 @@ import com.thizthizzydizzy.movecraft.JSON.JSONArray;
 import com.thizthizzydizzy.movecraft.JSON.JSONObject;
 import com.thizthizzydizzy.movecraft.Movecraft;
 import com.thizthizzydizzy.movecraft.craft.Craft;
+import com.thizthizzydizzy.movecraft.craft.Craft.BlockMovement;
 import com.thizthizzydizzy.movecraft.craft.CraftEngine;
 import com.thizthizzydizzy.movecraft.craft.CraftSign;
 import java.util.ArrayList;
@@ -26,7 +27,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.FurnaceInventory;
 import org.bukkit.inventory.ItemStack;
-public class AirshipEngine extends Engine{
+public class StandardEngine extends Engine{
     public HashMap<Material, Integer> fuels = new HashMap<>();
     public ArrayList<BlockRequirement> liftBlocks = new ArrayList<>();
     public ArrayList<BlockRequirement> diveBlocks = new ArrayList<>();
@@ -36,7 +37,7 @@ public class AirshipEngine extends Engine{
     private Integer vertMoveDistance;
     private Material maneuverItem;
     private double floatThreshold = .75;
-    public AirshipEngine(){
+    public StandardEngine(){
         super("movecraft:standard");
     }
     @Override
@@ -131,19 +132,20 @@ public class AirshipEngine extends Engine{
             @Override
             public boolean matches(Craft craft, Sign sign){
                 if(craft==null)return false;//no craft can't cruise :3
-                if(!craft.hasEngine(AirshipEngine.this.getName()))return false;//this engine isn't on that craft
+                if(!craft.hasEngine(StandardEngine.this.getName()))return false;//this engine isn't on that craft
                 return sign.getLine(0).trim().toLowerCase().startsWith("cruise:");
             }
             @Override
             public void click(Craft craft, Sign sign, PlayerInteractEvent event){
                 if(!craft.isPilot(event.getPlayer()))return;
-                CraftEngine engine = craft.getEngine(AirshipEngine.this.getName());
-                ((AirshipEngine)engine.getEngine()).cruise(engine, event.getAction()==Action.LEFT_CLICK_BLOCK?Direction.NONE:Movecraft.getSignRotation(sign.getBlockData()));
+                CraftEngine engine = craft.getEngine(StandardEngine.this.getName());
+                ((StandardEngine)engine.getEngine()).cruise(engine, event.getAction()==Action.LEFT_CLICK_BLOCK?Direction.NONE:Movecraft.getSignRotation(sign.getBlockData()));
+                craft.updateSigns();
             }
             @Override
             public void update(Craft craft, Sign sign){
-                CraftEngine engine = craft.getEngine(AirshipEngine.this.getName());
-                Direction cruise = ((AirshipEngine)engine.getEngine()).getCruise(engine);
+                CraftEngine engine = craft.getEngine(StandardEngine.this.getName());
+                Direction cruise = ((StandardEngine)engine.getEngine()).getCruise(engine);
                 boolean off = cruise==Direction.UP||cruise==Direction.DOWN||cruise==Direction.NONE;
                 sign.setLine(0, "Cruise: "+(off?"OFF":"ON"));
                 sign.update();//TODO only if it changes!
@@ -161,19 +163,20 @@ public class AirshipEngine extends Engine{
             @Override
             public boolean matches(Craft craft, Sign sign){
                 if(craft==null)return false;//no craft can't ascend :3
-                if(!craft.hasEngine(AirshipEngine.this.getName()))return false;//this engine isn't on that craft
+                if(!craft.hasEngine(StandardEngine.this.getName()))return false;//this engine isn't on that craft
                 return sign.getLine(0).trim().toLowerCase().startsWith("ascend:");
             }
             @Override
             public void click(Craft craft, Sign sign, PlayerInteractEvent event){
                 if(!craft.isPilot(event.getPlayer()))return;
-                CraftEngine engine = craft.getEngine(AirshipEngine.this.getName());
-                ((AirshipEngine)engine.getEngine()).cruise(engine, event.getAction()==Action.LEFT_CLICK_BLOCK?Direction.NONE:Direction.UP);
+                CraftEngine engine = craft.getEngine(StandardEngine.this.getName());
+                ((StandardEngine)engine.getEngine()).cruise(engine, event.getAction()==Action.LEFT_CLICK_BLOCK?Direction.NONE:Direction.UP);
+                craft.updateSigns();
             }
             @Override
             public void update(Craft craft, Sign sign){
-                CraftEngine engine = craft.getEngine(AirshipEngine.this.getName());
-                sign.setLine(0, "Ascend: "+(((AirshipEngine)engine.getEngine()).getCruise(engine)==Direction.UP?"ON":"OFF"));
+                CraftEngine engine = craft.getEngine(StandardEngine.this.getName());
+                sign.setLine(0, "Ascend: "+(((StandardEngine)engine.getEngine()).getCruise(engine)==Direction.UP?"ON":"OFF"));
                 sign.update();//TODO only if it changes!
             }
             @Override
@@ -189,19 +192,20 @@ public class AirshipEngine extends Engine{
             @Override
             public boolean matches(Craft craft, Sign sign){
                 if(craft==null)return false;//no craft can't descend :3
-                if(!craft.hasEngine(AirshipEngine.this.getName()))return false;//this engine isn't on that craft
+                if(!craft.hasEngine(StandardEngine.this.getName()))return false;//this engine isn't on that craft
                 return sign.getLine(0).trim().toLowerCase().startsWith("descend:");
             }
             @Override
             public void click(Craft craft, Sign sign, PlayerInteractEvent event){
                 if(!craft.isPilot(event.getPlayer()))return;
-                CraftEngine engine = craft.getEngine(AirshipEngine.this.getName());
-                ((AirshipEngine)engine.getEngine()).cruise(engine, event.getAction()==Action.LEFT_CLICK_BLOCK?Direction.NONE:Direction.DOWN);
+                CraftEngine engine = craft.getEngine(StandardEngine.this.getName());
+                ((StandardEngine)engine.getEngine()).cruise(engine, event.getAction()==Action.LEFT_CLICK_BLOCK?Direction.NONE:Direction.DOWN);
+                craft.updateSigns();
             }
             @Override
             public void update(Craft craft, Sign sign){
-                CraftEngine engine = craft.getEngine(AirshipEngine.this.getName());
-                sign.setLine(0, "Descend: "+(((AirshipEngine)engine.getEngine()).getCruise(engine)==Direction.DOWN?"ON":"OFF"));
+                CraftEngine engine = craft.getEngine(StandardEngine.this.getName());
+                sign.setLine(0, "Descend: "+(((StandardEngine)engine.getEngine()).getCruise(engine)==Direction.DOWN?"ON":"OFF"));
                 sign.update();//TODO only if it changes!
             }
             @Override
@@ -217,26 +221,26 @@ public class AirshipEngine extends Engine{
             @Override
             public boolean matches(Craft craft, Sign sign){
                 if(craft==null)return false;//no craft can't rotate :3
-                if(!craft.hasEngine(AirshipEngine.this.getName()))return false;//this engine isn't on that craft
+                if(!craft.hasEngine(StandardEngine.this.getName()))return false;//this engine isn't on that craft
                 return Movecraft.isHelm(sign.getLines())||sign.getLine(0).trim().equalsIgnoreCase("[helm]");
             }
             @Override
             public void click(Craft craft, Sign sign, PlayerInteractEvent event){
                 if(!craft.isPilot(event.getPlayer()))return;
-                CraftEngine engine = craft.getEngine(AirshipEngine.this.getName());
+                CraftEngine engine = craft.getEngine(StandardEngine.this.getName());
                 int direction = 0;
                 if(event.getAction()==Action.RIGHT_CLICK_BLOCK)direction = 1;
                 if(event.getAction()==Action.LEFT_CLICK_BLOCK)direction = -1;
-                ((AirshipEngine)engine.getEngine()).rotate(engine, sign, direction);
-                event.setCancelled(true);//TODO why? If this is important, shouldn't it be on everything? If not, why is it here?
+                ((StandardEngine)engine.getEngine()).rotate(engine, direction);
+                craft.updateSigns();
             }
             @Override
             public void update(Craft craft, Sign sign){
-                CraftEngine engine = craft.getEngine(AirshipEngine.this.getName());
+                CraftEngine engine = craft.getEngine(StandardEngine.this.getName());
                 for(int i = 0; i<Movecraft.helm.length; i++){
                     sign.setLine(i, Movecraft.helm[i]);
                 }
-                int rotation = ((AirshipEngine)engine.getEngine()).getRotate(engine);
+                int rotation = ((StandardEngine)engine.getEngine()).getRotate(engine);
                 String rotStr = "";
                 while(rotation>=2){
                     rotStr+="»";
@@ -269,7 +273,7 @@ public class AirshipEngine extends Engine{
     }
     @Override
     public Engine newInstance(){
-        return new AirshipEngine();
+        return new StandardEngine();
     }
     @Override
     public String checkValid(HashSet<Block> craft){
@@ -302,6 +306,7 @@ public class AirshipEngine extends Engine{
         engine.set("rotate", 0);
         engine.set("timer", 0);
         engine.set("maneuverCooldown", 0);
+        engine.set("fuel", 0);
         recalcEngines(engine);
         recalcLift(engine);
         recalcDive(engine);
@@ -334,13 +339,19 @@ public class AirshipEngine extends Engine{
             }
         }
         Direction cruise = getCruise(engine);
-        if(cruise==Direction.NONE){
+        if(cruise==Direction.NONE&&getRotate(engine)==0){
             engine.set("timer", 0);
         }else{
             engine.set("timer", (int)engine.get("timer")+1);
             if((int)engine.get("timer")>=moveTime){
                 engine.set("timer", (int)engine.get("timer")-moveTime);
-                move(engine, cruise.x*horizMoveDistance, cruise.y*vertMoveDistance, cruise.z*horizMoveDistance, true);
+                int rotate = getRotate(engine);
+                if(rotate!=0){
+                    int direction = rotate/Math.abs(rotate);
+                    doRotate(engine, direction);
+                }else{
+                    move(engine, cruise.x*horizMoveDistance, cruise.y*vertMoveDistance, cruise.z*horizMoveDistance, true);
+                }
             }
         }
     }
@@ -394,9 +405,9 @@ public class AirshipEngine extends Engine{
     private Direction getCruise(CraftEngine engine){
         return (Direction)engine.get("cruise");
     }
-    private void rotate(CraftEngine engine, Sign sign, int amount){
-        engine.set("rotateAround", sign);
+    private void rotate(CraftEngine engine, int amount){
         engine.set("rotate", (int)engine.get("rotate")+amount);
+        engine.getCraft().updateSigns();
     }
     private int getRotate(CraftEngine engine){
         return (int)engine.get("rotate");
@@ -568,6 +579,30 @@ public class AirshipEngine extends Engine{
             }
         }
         return true;
+    }
+    private void doRotate(CraftEngine engine, int rotation){
+        if(checkDisabled(engine))return;
+        if(!checkFuel(engine))return;
+        if(engine.getCraft().rotate(engine.getCraft().getOrigin().clone().subtract(.5,.5,.5), rotation, canDive(engine))){
+            while(rotation>0){
+                rotation--;
+                switch(getCruise(engine)){
+                    case NORTH:
+                        cruise(engine, Direction.EAST);
+                        break;
+                    case EAST:
+                        cruise(engine, Direction.SOUTH);
+                        break;
+                    case SOUTH:
+                        cruise(engine, Direction.WEST);
+                        break;
+                    case WEST:
+                        cruise(engine, Direction.NORTH);
+                        break;
+                }
+            }
+            rotate(engine, -rotation);
+        }
     }
     private static class BlockRequirement{
         public HashSet<Material> blocks;

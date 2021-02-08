@@ -28,7 +28,10 @@ public class PlayerListener implements Listener{
                 Sign sign = (Sign)state;
                 CraftSign craftSign = CraftSign.getSign(craft, sign);
                 if(craftSign!=null){
-                    if(craftSign.canRespond(craft, sign, event.getAction()))craftSign.click(craft, sign, event);
+                    if(craftSign.canRespond(craft, sign, event.getAction())){
+                        event.setCancelled(true);
+                        craftSign.click(craft, sign, event);
+                    }
                 }
             }
             if(craft!=null){

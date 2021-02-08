@@ -28,7 +28,10 @@ public class BlockListener implements Listener{
         if(craft==null)return;
         craft.event(event);
         if(event.isCancelled())return;
-        if(!craft.isCrew(event.getPlayer()))return;
+        if(!craft.isCrew(event.getPlayer())){
+            event.setCancelled(true);
+            return;
+        }
         if(!craft.removeBlock(event.getPlayer(), event.getBlock(), false))event.setCancelled(true);
     }
     @EventHandler

@@ -7,6 +7,8 @@ import com.thizthizzydizzy.movecraft.detector.StandardDetector;
 import com.thizthizzydizzy.movecraft.engine.Engine;
 import com.thizthizzydizzy.movecraft.special.Special;
 import com.thizthizzydizzy.movecraft.file.FileFormat;
+import com.thizthizzydizzy.movecraft.listener.BlockListener;
+import com.thizthizzydizzy.movecraft.listener.EntityListener;
 import com.thizthizzydizzy.movecraft.listener.PlayerListener;
 import java.io.File;
 import java.util.ArrayList;
@@ -202,6 +204,8 @@ public class Movecraft extends JavaPlugin{
         //<editor-fold defaultstate="collapsed" desc="Register Events">
         PluginManager pm = getServer().getPluginManager();
         pm.registerEvents(new PlayerListener(this), this);
+        pm.registerEvents(new BlockListener(this), this);
+        pm.registerEvents(new EntityListener(this), this);
 //</editor-fold>
         //<editor-fold defaultstate="collapsed" desc="Register Config">
         saveDefaultConfig();
