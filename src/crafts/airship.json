@@ -4,6 +4,14 @@
     "minSize": 500,
     "maxSize": 20000,
     "sinkMoveTime": 18,
+    "constructionMode": {
+        "timeout": 1200
+    }
+    "combatMode": {
+        "timeout": 6000,
+        "pilots": 2,
+        "crew": 3
+    }
     "engines": [
         {
             "type": "movecraft:standard",
@@ -183,6 +191,10 @@
         },
         {
             "type": "movecraft:mob_spawn_protection"
+        },
+        {
+            "type": "movecraft:damage_report",
+            "timeout": 20
         }
     ],
     "allowedBlocks": [

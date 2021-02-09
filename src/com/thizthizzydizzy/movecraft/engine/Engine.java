@@ -55,5 +55,10 @@ public abstract class Engine{
     public abstract boolean removeBlock(CraftEngine engine, Player player, int damage, boolean damaged, Location l);
     public abstract void updateHull(CraftEngine engine);
     public abstract boolean addBlock(CraftEngine engine, Player player, Block block, boolean force);
-    public abstract Message getMessage(CraftEngine engine);
+    public ArrayList<Message> getMessages(CraftEngine engine){
+        ArrayList<Message> messages = new ArrayList<>();
+        getMessages(engine, messages);
+        return messages;
+    }
+    public abstract void getMessages(CraftEngine engine, ArrayList<Message> messages);
 }

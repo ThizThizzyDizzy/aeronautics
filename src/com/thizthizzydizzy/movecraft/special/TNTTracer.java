@@ -113,7 +113,5 @@ public class TNTTracer extends Special{
         return true;
     }
     @Override
-    public Message getMessage(CraftSpecial special){
-        return null;
-    }
+    public void getMessages(CraftSpecial special, ArrayList<Message> messages){}
 }

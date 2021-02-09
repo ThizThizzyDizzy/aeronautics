@@ -15,6 +15,14 @@ public class CraftType{
     public HashSet<Material> allowedBlocks = new HashSet<>();
     public HashSet<Material> bannedBlocks = new HashSet<>();
     public int sinkMoveTime = 10;
+    public boolean hasConstructionMode;
+    public int constructionTimeout;
+    public int constructionPilots;
+    public int constructionCrew;
+    public boolean hasCombatMode;
+    public int combatTimeout;
+    public int combatPilots;
+    public int combatCrew;
     public CraftType(String name, int minSize, int maxSize){
         this.name = name;
         this.minSize = minSize;

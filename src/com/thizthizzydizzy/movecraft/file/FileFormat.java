@@ -80,6 +80,20 @@ public abstract class FileFormat{
                     }
                 }
                 if(json.hasInt("sinkMoveTime"))type.sinkMoveTime = json.getInt("sinkMoveTime");
+                if(json.hasJSONObject("constructionMode")){
+                    type.hasConstructionMode = true;
+                    JSONObject construction = json.getJSONObject("constructionMode");
+                    type.constructionTimeout = construction.getInt("timeout");
+                    if(construction.hasInt("pilots"))type.constructionPilots = construction.getInt("pilots");
+                    if(construction.hasInt("crew"))type.constructionCrew = construction.getInt("crew");
+                }
+                if(json.hasJSONObject("combatMode")){
+                    type.hasCombatMode = true;
+                    JSONObject combat = json.getJSONObject("combatMode");
+                    type.combatTimeout = combat.getInt("timeout");
+                    if(combat.hasInt("pilots"))type.combatPilots = combat.getInt("pilots");
+                    if(combat.hasInt("crew"))type.combatCrew = combat.getInt("crew");
+                }
                 return type;
             }
         });

@@ -60,5 +60,10 @@ public abstract class Special{
     public abstract boolean removeBlock(CraftSpecial special, Player player, int damage, boolean damaged, Location l);
     public abstract void updateHull(CraftSpecial special);
     public abstract boolean addBlock(CraftSpecial special, Player player, Block block, boolean force);
-    public abstract Message getMessage(CraftSpecial special);
+    public ArrayList<Message> getMessages(CraftSpecial special){
+        ArrayList<Message> messages = new ArrayList<>();
+        getMessages(special, messages);
+        return messages;
+    }
+    public abstract void getMessages(CraftSpecial special, ArrayList<Message> messages);
 }

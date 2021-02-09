@@ -605,19 +605,19 @@ public class StandardEngine extends Engine{
         }
     }
     @Override
-    public Message getMessage(CraftEngine engine){
-        String text = "";
+    public void getMessages(CraftEngine engine, ArrayList<Message> messages){
         if(!liftBlocks.isEmpty()){
-            text+=" | Lift: "+Math.round((float)engine.get("lift")*100_0)/10d+"%";
+            float lift = (float)engine.get("lift");
+            messages.add(new Message(lift<1?Message.Priority.CRITICAL:Message.Priority.INFO_UNIVERSAL, true, true, "Lift: "+Math.round(lift*100_0)/10d+"%"));
         }
         if(!diveBlocks.isEmpty()){
-            text+=" | Dive: "+Math.round((float)engine.get("dive")*100_0)/10d+"%";
+            float dive = (float)engine.get("dive");
+            messages.add(new Message(dive<1?Message.Priority.CRITICAL:Message.Priority.INFO_UNIVERSAL, true, true, "Dive: "+Math.round(dive*100_0)/10d+"%"));
         }
         if(!engineBlocks.isEmpty()){
-            text+=" | Engines: "+Math.round((float)engine.get("power")*100_0)/10d+"%";
+            float power = (float)engine.get("power");
+            messages.add(new Message(power<1?Message.Priority.CRITICAL:Message.Priority.INFO_UNIVERSAL, true, true, "Engines: "+Math.round(power*100_0)/10d+"%"));
         }
-        if(text.isEmpty())return null;
-        return new Message(text.substring(3), Message.Priority.COMBAT, true, true);
     }
     private static class BlockRequirement{
         public HashSet<Material> blocks;

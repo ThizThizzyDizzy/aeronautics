@@ -156,7 +156,5 @@ public class MobSpawnProtection extends Special implements Listener{
         return true;
     }
     @Override
-    public Message getMessage(CraftSpecial special){
-        return null;
-    }
+    public void getMessages(CraftSpecial special, ArrayList<Message> messages){}
 }

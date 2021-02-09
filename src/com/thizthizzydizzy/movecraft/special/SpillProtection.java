@@ -68,7 +68,5 @@ public class SpillProtection extends Special implements Listener{
         return true;
     }
     @Override
-    public Message getMessage(CraftSpecial special){
-        return null;
-    }
+    public void getMessages(CraftSpecial special, ArrayList<Message> messages){}
 }

@@ -73,6 +73,8 @@ public class Craft{
     private boolean moving;
     public boolean dead = false;
     private int sinkTimer = 0;
+    private Mode mode;
+    private int modeTimer;
     public Craft(Movecraft movecraft, World world, CraftType type, HashSet<Block> blocks){
         this.movecraft = movecraft;
         this.world = world;
@@ -120,6 +122,12 @@ public class Craft{
                 move(movements, true, true);
             }
         }
+        modeTimer++;
+        setMode(Mode.IDLE);
+        if(type.hasConstructionMode&&type.constructionPilots>0&&pilots.size()>=type.constructionPilots)setMode(Mode.CONSTRUCTION);
+        if(type.hasConstructionMode&&type.constructionCrew>0&&getCrew().size()>=type.constructionCrew)setMode(Mode.CONSTRUCTION);
+        if(type.hasCombatMode&&type.combatPilots>0&&pilots.size()>=type.combatPilots)setMode(Mode.COMBAT);
+        if(type.hasCombatMode&&type.combatCrew>0&&getCrew().size()>=type.combatCrew)setMode(Mode.COMBAT);
         for(CraftEngine engine : engines){
             engine.getEngine().tick(engine);
         }
@@ -127,33 +135,30 @@ public class Craft{
             special.getSpecial().tick(special);
         }
         ArrayList<Message> messages = new ArrayList<>();
+        ArrayList<Message> criticalMessages = new ArrayList<>();
         ENGINE:for(CraftEngine engine : engines){
-            Message message = engine.getEngine().getMessage(engine);
-            if(message!=null){
-                for(Iterator<Message> it = messages.iterator(); it.hasNext();){
-                    Message mess = it.next();
-                    if(mess.overrides(message))continue ENGINE;
-                    if(message.overrides(mess))it.remove();
-                }
-                messages.add(message);
+            for(Message message : engine.getEngine().getMessages(engine)){
+                if(message.priority==Message.Priority.CRITICAL)criticalMessages.add(message);
+                else messages.add(message);
             }
         }
         SPECIAL:for(CraftSpecial special : specials){
-            Message message = special.getSpecial().getMessage(special);
-            if(message!=null){
-                for(Iterator<Message> it = messages.iterator(); it.hasNext();){
-                    Message mess = it.next();
-                    if(mess.overrides(message))continue SPECIAL;
-                    if(message.overrides(mess))it.remove();
-                }
-                messages.add(message);
+            for(Message message : special.getSpecial().getMessages(special)){
+                if(message.priority==Message.Priority.CRITICAL)criticalMessages.add(message);
+                else messages.add(message);
             }
+        }
+        if(!criticalMessages.isEmpty()){
+            messages.clear();
+            messages.addAll(criticalMessages);
         }
         String crew = "";
         String pilot = "";
         for(Message m : messages){
-            if(m.crew)crew+=" | "+m.text;
-            if(m.pilot)pilot+=" | "+m.text;
+            if(m.priority.shouldDisplay(mode)){
+                if(m.crew)crew+=" | "+m.text;
+                if(m.pilot)pilot+=" | "+m.text;
+            }
         }
         if(!crew.isEmpty()){
             for(Player player : getCrew()){
@@ -1202,6 +1207,8 @@ public class Craft{
     }
     public boolean removeBlock(Player player, Block block, boolean damage){
         if(moving)return false;
+        if(damage)setMode(Mode.COMBAT);
+        else setMode(Mode.CONSTRUCTION);
         if(updateHull(player, blocks.remove(block)?1:0, damage, block.getLocation())){
             return true;
         }else{
@@ -1250,6 +1257,7 @@ public class Craft{
         if(moving){
             return false;
         }
+        setMode(Mode.CONSTRUCTION);
         if(type.bannedBlocks.contains(block.getType())||!type.allowedBlocks.contains(block.getType())){
             notifyBlockChange(player, block.getType()+" is not allowed on this craft!");
             return false;
@@ -1300,6 +1308,26 @@ public class Craft{
             e.teleport(l, PlayerTeleportEvent.TeleportCause.PLUGIN);
         }
         return true;
+    }
+    private void setMode(Mode mode){
+        if(mode==Mode.CONSTRUCTION&&!type.hasConstructionMode)return;
+        if(mode==Mode.COMBAT&&!type.hasCombatMode)return;
+        if(mode.ordinal()>this.mode.ordinal())this.mode = mode;
+        if(mode==this.mode)modeTimer = 0;
+        if(mode.ordinal()<this.mode.ordinal()){
+            switch(this.mode){
+                case CONSTRUCTION:
+                    if(modeTimer>type.constructionTimeout){
+                        this.mode = mode;
+                    }
+                    break;
+                case COMBAT:
+                    if(modeTimer>type.combatTimeout){
+                        this.mode = mode;
+                    }
+                    break;
+            }
+        }
     }
     public static class BlockChange implements Comparable<BlockChange>{
         private final Material type;
@@ -1513,5 +1541,10 @@ public class Craft{
         private void callEvent(Craft craft){
             Bukkit.getServer().getPluginManager().callEvent(new BlockMoveEvent(craft, this));
         }
+    }
+    public static enum Mode{//TODO modifiable?
+        IDLE,
+        CONSTRUCTION,
+        COMBAT;
     }
 }
