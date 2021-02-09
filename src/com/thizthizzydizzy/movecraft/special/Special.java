@@ -2,6 +2,7 @@ package com.thizthizzydizzy.movecraft.special;
 import com.thizthizzydizzy.movecraft.JSON.JSONObject;
 import com.thizthizzydizzy.movecraft.craft.CraftSign;
 import com.thizthizzydizzy.movecraft.craft.CraftSpecial;
+import com.thizthizzydizzy.movecraft.craft.Message;
 import java.util.ArrayList;
 import java.util.HashSet;
 import org.bukkit.Location;
@@ -59,4 +60,5 @@ public abstract class Special{
     public abstract boolean removeBlock(CraftSpecial special, Player player, int damage, boolean damaged, Location l);
     public abstract void updateHull(CraftSpecial special);
     public abstract boolean addBlock(CraftSpecial special, Player player, Block block, boolean force);
+    public abstract Message getMessage(CraftSpecial special);
 }

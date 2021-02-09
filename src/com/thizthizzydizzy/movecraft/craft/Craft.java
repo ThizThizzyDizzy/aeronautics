@@ -126,6 +126,46 @@ public class Craft{
         for(CraftSpecial special : specials){
             special.getSpecial().tick(special);
         }
+        ArrayList<Message> messages = new ArrayList<>();
+        ENGINE:for(CraftEngine engine : engines){
+            Message message = engine.getEngine().getMessage(engine);
+            if(message!=null){
+                for(Iterator<Message> it = messages.iterator(); it.hasNext();){
+                    Message mess = it.next();
+                    if(mess.overrides(message))continue ENGINE;
+                    if(message.overrides(mess))it.remove();
+                }
+                messages.add(message);
+            }
+        }
+        SPECIAL:for(CraftSpecial special : specials){
+            Message message = special.getSpecial().getMessage(special);
+            if(message!=null){
+                for(Iterator<Message> it = messages.iterator(); it.hasNext();){
+                    Message mess = it.next();
+                    if(mess.overrides(message))continue SPECIAL;
+                    if(message.overrides(mess))it.remove();
+                }
+                messages.add(message);
+            }
+        }
+        String crew = "";
+        String pilot = "";
+        for(Message m : messages){
+            if(m.crew)crew+=" | "+m.text;
+            if(m.pilot)pilot+=" | "+m.text;
+        }
+        if(!crew.isEmpty()){
+            for(Player player : getCrew()){
+                if(pilots.contains(player)&&!pilot.isEmpty())continue;//pilots have their own collection
+                player.sendMessage(crew.substring(3));
+            }
+        }
+        if(!pilot.isEmpty()){
+            for(Player player : pilots){
+                player.sendMessage(pilot.substring(3));
+            }
+        }
     }
     public boolean hasEngine(String engine){
         return getEngine(engine)!=null;

@@ -3,6 +3,7 @@ import com.thizthizzydizzy.movecraft.JSON;
 import com.thizthizzydizzy.movecraft.craft.Craft;
 import com.thizthizzydizzy.movecraft.craft.CraftSign;
 import com.thizthizzydizzy.movecraft.craft.CraftSpecial;
+import com.thizthizzydizzy.movecraft.craft.Message;
 import com.thizthizzydizzy.movecraft.event.BlockMoveEvent;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -15,12 +16,10 @@ import org.bukkit.Material;
 import org.bukkit.Tag;
 import org.bukkit.block.Block;
 import org.bukkit.block.Sign;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TNTPrimed;
 import org.bukkit.event.Event;
 import org.bukkit.event.block.Action;
-import org.bukkit.event.entity.EntitySpawnEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
@@ -242,5 +241,9 @@ public class TNTDirector extends Special{
     @Override
     public boolean addBlock(CraftSpecial special, Player player, Block block, boolean force){
         return true;
+    }
+    @Override
+    public Message getMessage(CraftSpecial special){
+        return null;
     }
 }

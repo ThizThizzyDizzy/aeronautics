@@ -2,12 +2,11 @@ package com.thizthizzydizzy.movecraft.special;
 import com.thizthizzydizzy.movecraft.JSON;
 import com.thizthizzydizzy.movecraft.craft.CraftSign;
 import com.thizthizzydizzy.movecraft.craft.CraftSpecial;
+import com.thizthizzydizzy.movecraft.craft.Message;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
@@ -72,5 +71,9 @@ public class FireChargeLifespan extends Special{
     @Override
     public boolean addBlock(CraftSpecial special, Player player, Block block, boolean force){
         return true;
+    }
+    @Override
+    public Message getMessage(CraftSpecial special){
+        return null;
     }
 }

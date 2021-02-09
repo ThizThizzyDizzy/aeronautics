@@ -2,6 +2,7 @@ package com.thizthizzydizzy.movecraft.engine;
 import com.thizthizzydizzy.movecraft.JSON.JSONObject;
 import com.thizthizzydizzy.movecraft.craft.CraftEngine;
 import com.thizthizzydizzy.movecraft.craft.CraftSign;
+import com.thizthizzydizzy.movecraft.craft.Message;
 import java.util.ArrayList;
 import java.util.HashSet;
 import org.bukkit.Location;
@@ -54,4 +55,5 @@ public abstract class Engine{
     public abstract boolean removeBlock(CraftEngine engine, Player player, int damage, boolean damaged, Location l);
     public abstract void updateHull(CraftEngine engine);
     public abstract boolean addBlock(CraftEngine engine, Player player, Block block, boolean force);
+    public abstract Message getMessage(CraftEngine engine);
 }

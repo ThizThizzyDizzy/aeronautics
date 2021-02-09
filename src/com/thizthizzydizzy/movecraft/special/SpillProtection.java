@@ -2,6 +2,7 @@ package com.thizthizzydizzy.movecraft.special;
 import com.thizthizzydizzy.movecraft.JSON;
 import com.thizthizzydizzy.movecraft.craft.CraftSign;
 import com.thizthizzydizzy.movecraft.craft.CraftSpecial;
+import com.thizthizzydizzy.movecraft.craft.Message;
 import java.util.ArrayList;
 import java.util.Iterator;
 import org.bukkit.Location;
@@ -65,5 +66,9 @@ public class SpillProtection extends Special implements Listener{
     @Override
     public boolean addBlock(CraftSpecial special, Player player, Block block, boolean force){
         return true;
+    }
+    @Override
+    public Message getMessage(CraftSpecial special){
+        return null;
     }
 }

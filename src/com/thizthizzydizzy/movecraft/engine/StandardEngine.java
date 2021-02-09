@@ -4,9 +4,9 @@ import com.thizthizzydizzy.movecraft.JSON.JSONArray;
 import com.thizthizzydizzy.movecraft.JSON.JSONObject;
 import com.thizthizzydizzy.movecraft.Movecraft;
 import com.thizthizzydizzy.movecraft.craft.Craft;
-import com.thizthizzydizzy.movecraft.craft.Craft.BlockMovement;
 import com.thizthizzydizzy.movecraft.craft.CraftEngine;
 import com.thizthizzydizzy.movecraft.craft.CraftSign;
+import com.thizthizzydizzy.movecraft.craft.Message;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -603,6 +603,21 @@ public class StandardEngine extends Engine{
             }
             rotate(engine, -rotation);
         }
+    }
+    @Override
+    public Message getMessage(CraftEngine engine){
+        String text = "";
+        if(!liftBlocks.isEmpty()){
+            text+=" | Lift: "+Math.round((float)engine.get("lift")*100_0)/10d+"%";
+        }
+        if(!diveBlocks.isEmpty()){
+            text+=" | Dive: "+Math.round((float)engine.get("dive")*100_0)/10d+"%";
+        }
+        if(!engineBlocks.isEmpty()){
+            text+=" | Engines: "+Math.round((float)engine.get("power")*100_0)/10d+"%";
+        }
+        if(text.isEmpty())return null;
+        return new Message(text.substring(3), Message.Priority.COMBAT, true, true);
     }
     private static class BlockRequirement{
         public HashSet<Material> blocks;

@@ -2,6 +2,7 @@ package com.thizthizzydizzy.movecraft.special;
 import com.thizthizzydizzy.movecraft.JSON;
 import com.thizthizzydizzy.movecraft.craft.CraftSign;
 import com.thizthizzydizzy.movecraft.craft.CraftSpecial;
+import com.thizthizzydizzy.movecraft.craft.Message;
 import java.util.ArrayList;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
@@ -153,5 +154,9 @@ public class MobSpawnProtection extends Special implements Listener{
     @Override
     public boolean addBlock(CraftSpecial special, Player player, Block block, boolean force){
         return true;
+    }
+    @Override
+    public Message getMessage(CraftSpecial special){
+        return null;
     }
 }

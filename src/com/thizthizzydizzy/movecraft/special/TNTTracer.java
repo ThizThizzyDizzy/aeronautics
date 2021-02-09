@@ -4,6 +4,7 @@ import com.thizthizzydizzy.movecraft.JSON.JSONObject;
 import com.thizthizzydizzy.movecraft.Movecraft;
 import com.thizthizzydizzy.movecraft.craft.CraftSign;
 import com.thizthizzydizzy.movecraft.craft.CraftSpecial;
+import com.thizthizzydizzy.movecraft.craft.Message;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -16,7 +17,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.entity.TNTPrimed;
 import org.bukkit.event.Event;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.util.Vector;
 public class TNTTracer extends Special{
     private Material tracerBlock;
     private int tracerTime;
@@ -111,5 +111,9 @@ public class TNTTracer extends Special{
     @Override
     public boolean addBlock(CraftSpecial special, Player player, Block block, boolean force){
         return true;
+    }
+    @Override
+    public Message getMessage(CraftSpecial special){
+        return null;
     }
 }
