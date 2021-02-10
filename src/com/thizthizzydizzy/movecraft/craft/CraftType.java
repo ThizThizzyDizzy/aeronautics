@@ -1,6 +1,6 @@
 package com.thizthizzydizzy.movecraft.craft;
-import com.thizthizzydizzy.movecraft.engine.Engine;
-import com.thizthizzydizzy.movecraft.special.Special;
+import com.thizthizzydizzy.movecraft.craft.engine.Engine;
+import com.thizthizzydizzy.movecraft.craft.special.Special;
 import java.util.ArrayList;
 import java.util.HashSet;
 import org.bukkit.Material;

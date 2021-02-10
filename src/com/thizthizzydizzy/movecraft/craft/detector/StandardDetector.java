@@ -1,4 +1,4 @@
-package com.thizthizzydizzy.movecraft.detector;
+package com.thizthizzydizzy.movecraft.craft.detector;
 import com.thizthizzydizzy.movecraft.Movecraft;
 import com.thizthizzydizzy.movecraft.craft.Craft;
 import com.thizthizzydizzy.movecraft.craft.CraftType;

@@ -1,5 +1,5 @@
 package com.thizthizzydizzy.movecraft.craft;
-import com.thizthizzydizzy.movecraft.special.Special;
+import com.thizthizzydizzy.movecraft.craft.special.Special;
 import java.util.HashMap;
 public class CraftSpecial{
     private final HashMap<String, Object> data = new HashMap<>();

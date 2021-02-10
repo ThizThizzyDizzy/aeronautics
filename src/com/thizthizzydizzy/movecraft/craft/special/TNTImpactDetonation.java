@@ -1,4 +1,4 @@
-package com.thizthizzydizzy.movecraft.special;
+package com.thizthizzydizzy.movecraft.craft.special;
 import com.thizthizzydizzy.movecraft.JSON;
 import com.thizthizzydizzy.movecraft.Movecraft;
 import com.thizthizzydizzy.movecraft.craft.CraftSign;

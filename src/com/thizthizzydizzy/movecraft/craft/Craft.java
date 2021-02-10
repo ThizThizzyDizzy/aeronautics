@@ -1,7 +1,7 @@
 package com.thizthizzydizzy.movecraft.craft;
 import com.thizthizzydizzy.movecraft.Movecraft;
-import com.thizthizzydizzy.movecraft.engine.Engine;
-import com.thizthizzydizzy.movecraft.special.Special;
+import com.thizthizzydizzy.movecraft.craft.engine.Engine;
+import com.thizthizzydizzy.movecraft.craft.special.Special;
 import com.thizthizzydizzy.movecraft.event.BlockMoveEvent;
 import com.thizthizzydizzy.vanillify.Vanillify;
 import java.util.ArrayList;

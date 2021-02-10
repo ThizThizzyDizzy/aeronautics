@@ -1,7 +1,7 @@
 package com.thizthizzydizzy.movecraft.craft;
 import com.thizthizzydizzy.movecraft.Movecraft;
-import com.thizthizzydizzy.movecraft.engine.Engine;
-import com.thizthizzydizzy.movecraft.special.Special;
+import com.thizthizzydizzy.movecraft.craft.engine.Engine;
+import com.thizthizzydizzy.movecraft.craft.special.Special;
 import java.util.ArrayList;
 import org.bukkit.block.Sign;
 import org.bukkit.event.block.Action;

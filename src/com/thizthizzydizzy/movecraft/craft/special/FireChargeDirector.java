@@ -1,5 +1,6 @@
-package com.thizthizzydizzy.movecraft.special;
+package com.thizthizzydizzy.movecraft.craft.special;
 import com.thizthizzydizzy.movecraft.JSON;
+import com.thizthizzydizzy.movecraft.JSON.JSONArray;
 import com.thizthizzydizzy.movecraft.craft.Craft;
 import com.thizthizzydizzy.movecraft.craft.CraftSign;
 import com.thizthizzydizzy.movecraft.craft.CraftSpecial;
@@ -8,7 +9,6 @@ import com.thizthizzydizzy.movecraft.event.BlockMoveEvent;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import org.bukkit.Bukkit;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.Location;
@@ -16,35 +16,37 @@ import org.bukkit.Material;
 import org.bukkit.Tag;
 import org.bukkit.block.Block;
 import org.bukkit.block.Sign;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
-import org.bukkit.entity.TNTPrimed;
+import org.bukkit.entity.SmallFireball;
 import org.bukkit.event.Event;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.entity.EntitySpawnEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.projectiles.BlockProjectileSource;
+import org.bukkit.projectiles.ProjectileSource;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
-public class TNTDirector extends Special{
+public class FireChargeDirector extends Special{
     private String displayName;
     private int range;
     private float angle;
-    private float squareVelocityThreshold;
     private Material directorItem;
     private HashSet<Material> transparent = new HashSet<>();
-    public TNTDirector(){
-        super("movecraft:tnt_director");
+    public FireChargeDirector(){
+        super("movecraft:fire_charge_director");
     }
     @Override
     protected void load(JSON.JSONObject json){
         displayName = json.getString("name");
         range = json.getInt("range");
         angle = json.getFloat("angle");
-        squareVelocityThreshold = json.getFloat("squareVelocityThreshold");
         directorItem = Material.matchMaterial(json.getString("item"));
         transparent.add(Material.AIR);
         transparent.add(Material.CAVE_AIR);
         transparent.add(Material.VOID_AIR);
         if(json.hasJSONArray("transparent")){
-            JSON.JSONArray transparent = json.getJSONArray("transparent");
+            JSONArray transparent = json.getJSONArray("transparent");
             for(Object obj : transparent){
                 String block = (String)obj;
                 if(block.startsWith("#")){
@@ -63,7 +65,7 @@ public class TNTDirector extends Special{
     }
     @Override
     public Special newInstance(){
-        return new TNTDirector();
+        return new FireChargeDirector();
     }
     @Override
     public void createSigns(ArrayList<CraftSign> signs){
@@ -71,15 +73,15 @@ public class TNTDirector extends Special{
             @Override
             public boolean matches(Craft craft, Sign sign){
                 if(craft==null)return false;//no craft
-                if(!craft.hasSpecial(TNTDirector.this.getName()))return false;//this special isn't on that craft
+                if(!craft.hasSpecial(FireChargeDirector.this.getName()))return false;//this special isn't on that craft
                 return sign.getLine(0).trim().equalsIgnoreCase(displayName);
             }
             @Override
             public void click(Craft craft, Sign sign, PlayerInteractEvent event){
                 if(!craft.isCrew(event.getPlayer()))return;
-                CraftSpecial special = craft.getSpecial(TNTDirector.this.getName());
-                if(event.getAction()==Action.RIGHT_CLICK_BLOCK)((TNTDirector)special.getSpecial()).addDirector(special, event.getPlayer());
-                if(event.getAction()==Action.LEFT_CLICK_BLOCK)((TNTDirector)special.getSpecial()).RemoveDirector(special, event.getPlayer());
+                CraftSpecial special = craft.getSpecial(FireChargeDirector.this.getName());
+                if(event.getAction()==Action.RIGHT_CLICK_BLOCK)((FireChargeDirector)special.getSpecial()).addDirector(special, event.getPlayer());
+                if(event.getAction()==Action.LEFT_CLICK_BLOCK)((FireChargeDirector)special.getSpecial()).RemoveDirector(special, event.getPlayer());
             }
             @Override
             public void update(Craft craft, Sign sign){
@@ -100,62 +102,52 @@ public class TNTDirector extends Special{
     public void init(CraftSpecial special){
         special.set("directors", new HashSet<Player>());
         special.set("targets", new HashMap<Player, Block>());
-        special.set("tnt", new HashMap<TNTPrimed, Double>());
     }
     @Override
-    public void tick(CraftSpecial special){
-        HashMap<TNTPrimed, Double> tnts = (HashMap<TNTPrimed, Double>)special.get("tnt");
-        for(TNTPrimed tnt : special.getCraft().getWorld().getEntitiesByClass(TNTPrimed.class)){
-            boolean found = false;
-            for(TNTPrimed tracked : tnts.keySet()){
-                if(tracked==tnt){
-                    found = true;
-                    break;
-                }
-            }
-            if(found||tnt.getVelocity().lengthSquared()<=squareVelocityThreshold)continue;
-            //TODO is it even on this craft?
-            tnts.put(tnt, tnt.getVelocity().lengthSquared());
-            Block target = getTarget(special, tnt.getLocation(), tnt.getVelocity());
-            Vector targetVector = getDirection(special, tnt.getVelocity());
-            if(target!=null||targetVector!=null){
-                Vector vel = tnt.getVelocity();
-                double speed = vel.length();
-                vel = vel.normalize();
-                if(target!=null)targetVector = target.getLocation().toVector().subtract(tnt.getLocation().toVector()).normalize();
-                if(targetVector.getX() - vel.getX() > angle){
-                    vel.setX(vel.getX() + angle);
-                }else if(targetVector.getX() - vel.getX() < -angle){
-                    vel.setX(vel.getX() - angle);
-                }else{
-                    vel.setX(targetVector.getX());
-                }
-                if(targetVector.getY() - vel.getY() > angle){
-                    vel.setY(vel.getY() + angle);
-                }else if(targetVector.getY() - vel.getY() < -angle){
-                    vel.setY(vel.getY() - angle);
-                }else{
-                    vel.setY(targetVector.getY());
-                }
-                if(targetVector.getZ() - vel.getZ() > angle){
-                    vel.setZ(vel.getZ() + angle);
-                }else if(targetVector.getZ() - vel.getZ() < -angle){
-                    vel.setZ(vel.getZ() - angle);
-                }else{
-                    vel.setZ(targetVector.getZ());
-                }
-                vel = vel.normalize().multiply(speed);
-                vel.setY(tnt.getVelocity().getY());
-                tnt.setVelocity(vel);
-            }
-        }
-        for(Iterator<TNTPrimed> it = tnts.keySet().iterator(); it.hasNext();){
-            TNTPrimed tnt = it.next();
-            if(tnt.getFuseTicks()<=0)it.remove();
-        }
-    }
+    public void tick(CraftSpecial special){}
     @Override
     public void event(CraftSpecial special, Event event){
+        if(event instanceof EntitySpawnEvent){
+            EntitySpawnEvent ese = (EntitySpawnEvent)event;
+            if(ese.getEntityType()==EntityType.SMALL_FIREBALL){
+                SmallFireball fireball = (SmallFireball)ese.getEntity();
+                ProjectileSource shooter = fireball.getShooter();
+                if(shooter instanceof BlockProjectileSource){
+                    Block b = ((BlockProjectileSource)shooter).getBlock();
+                    if(special.getCraft().blocks.contains(b)){
+                        Block target = getTarget(special, fireball.getLocation(), fireball.getDirection());
+                        Vector targetVector = getDirection(special, fireball.getDirection());
+                        if(target!=null||targetVector!=null){
+                            Vector direction = fireball.getDirection();
+                            direction = direction.normalize();
+                            if(target!=null)targetVector = target.getLocation().toVector().subtract(fireball.getLocation().toVector()).normalize();
+                            if(targetVector.getX() - direction.getX() > angle){
+                                direction.setX(direction.getX() + angle);
+                            }else if(targetVector.getX() - direction.getX() < -angle){
+                                direction.setX(direction.getX() - angle);
+                            }else{
+                                direction.setX(targetVector.getX());
+                            }
+                            if(targetVector.getY() - direction.getY() > angle){
+                                direction.setY(direction.getY() + angle);
+                            }else if(targetVector.getY() - direction.getY() < -angle){
+                                direction.setY(direction.getY() - angle);
+                            }else{
+                                direction.setY(targetVector.getY());
+                            }
+                            if(targetVector.getZ() - direction.getZ() > angle){
+                                direction.setZ(direction.getZ() + angle);
+                            }else if(targetVector.getZ() - direction.getZ() < -angle){
+                                direction.setZ(direction.getZ() - angle);
+                            }else{
+                                direction.setZ(targetVector.getZ());
+                            }
+                            fireball.setDirection(direction.normalize().multiply(fireball.getDirection().length()));
+                        }
+                    }
+                }
+            }
+        }
         if(event instanceof PlayerInteractEvent){
             PlayerInteractEvent pie = (PlayerInteractEvent)event;
             if(pie.getAction()==Action.RIGHT_CLICK_AIR||pie.getAction()==Action.RIGHT_CLICK_BLOCK){
