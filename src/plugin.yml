@@ -1,4 +1,4 @@
-main: com.thizthizzydizzy.movecraft.Movecraft
+main: com.thizthizzydizzy.aeronautics.Aeronautics
 version: 0
 api-version: 1.16
-name: Movecraft
+name: Aeronautics

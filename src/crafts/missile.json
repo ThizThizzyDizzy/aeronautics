@@ -1,0 +1,19 @@
+{
+    "name": "aeronautics:missile",
+    "display_name": "Missile",
+    "min_size": 1,
+    "max_size": 10,
+    "sink_move_time": 4,
+    "on_board_threshold": 2,
+    "detector": "aeronautics:linear",
+    "engines": [
+        {
+            "type": "aeronautics:missile_engine",
+            "max_flight_time": 1200
+        }
+    ],
+    "allowed_blocks": [
+        "minecraft:coal_block",
+        "minecraft:polished_basalt"
+    ]
+}

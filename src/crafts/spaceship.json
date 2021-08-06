@@ -1,0 +1,629 @@
+{
+    "name": "aeronautics:spaceship",
+    "display_name": "Spaceship",
+    "min_size": 5,
+    "max_size": 20000,
+    "on_board_threshold": 4,
+    "mediums": [
+        {
+            "blocks": [
+                "minecraft:air",
+                "minecraft:cave_air"
+            ],
+            "density": [
+                {
+                    "y": 64,
+                    "density": 1
+                },
+                {
+                    "y": 320,
+                    "density": 0.9
+                }
+            ],
+            "buoyancy_multiplier": 1,
+            "drag_multiplier": 1
+        },
+        {
+            "blocks":[
+                "minecraft:water",
+                "minecraft:bubble_column"
+            ],
+            "density": [
+                {
+                    "y": 64,
+                    "density": 6
+                },
+                {
+                    "y": -64,
+                    "density": 9
+                }
+            ],
+            "buoyancy_multiplier": 1,
+            "drag_multiplier": 1
+        }
+    ],
+    "detector": {
+        "name": "aeronautics:standard"
+    },
+    "sink_handler": {
+        "name": "aeronautics:fall",
+        "sink_move_time": 10
+    },
+    "construction_mode": {
+        "timeout": 1200
+    },
+    "combat_mode": {
+        "timeout": 6000,
+        "pilots": 2,
+        "crew": 3
+    },
+    "engines": [
+        {
+            "type": "aeronautics:standard_engine",
+            "energy_distribution_systems": [
+                {
+                    "type": "aeronautics:omnipresent",
+                    "name": "electric"
+                },
+                {
+                    "type": "aeronautics:ducted",
+                    "name": "rotary",
+                    "connectors": [
+                        "minecraft:stripped_oak_log",
+                        "minecraft:stripped_birch_log",
+                        "minecraft:stripped_spruce_log",
+                        "minecraft:stripped_jungle_log",
+                        "minecraft:stripped_dark_oak_log",
+                        "minecraft:stripped_acacia_log",
+                        "minecraft:stripped_crimson_stem",
+                        "minecraft:stripped_warped_stem",
+                        "minecraft:polished_andesite"
+                    ],
+                    "axles": [
+                        "minecraft:quartz_pillar",
+                        "minecraft:purpur_pillar"
+                    ],
+                    "belts": [
+                        "minecraft:oak_log",
+                        "minecraft:birch_log",
+                        "minecraft:spruce_log",
+                        "minecraft:jungle_log",
+                        "minecraft:dark_oak_log",
+                        "minecraft:acacia_log"
+                    ]
+                }
+            ],
+            "generators": [
+                {
+                    "type": "aeronautics:furnace_generator",
+                    "fuels": [
+                        {
+                            "items": [
+                                "minecraft:coal_block"
+                            ],
+                            "power": 200,
+                            "time": 16000
+                        },
+                        {
+                            "items": [
+                                "minecraft:coal",
+                                "minecraft:charcoal"
+                            ],
+                            "power": 200,
+                            "time": 1600
+                        }
+                    ],
+                    "energy_distribution_system": "electric"
+                },
+                {
+                    "type": "aeronautics:single_block_generator",
+                    "block": "minecraft:beacon",
+                    "power": 2000,
+                    "energy_distribution_system": "rotary"
+                },
+                {
+                    "type": "aeronautics_test:generator",
+                    "power": 640,
+                    "energy_distribution_system": "rotary"
+                }
+            ],
+            "engines": [
+                {
+                    "type": "aeronautics:turbine",
+                    "min_length": 1,
+                    "max_length": 64,
+                    "min_blade_length": 1,
+                    "max_blade_length": 8,
+                    "particle_density": 1,
+                    "particle_speed": 1,
+                    "particle_power": 8,
+                    "warmup_time_base": 50,
+                    "warmup_time_power": 0.75,
+                    "power_usage_base": 50,
+                    "power_usage_power": 0.75,
+                    "energy_distribution_system": "rotary",
+                    "rotors":[
+                        "minecraft:stripped_oak_log",
+                        "minecraft:stripped_birch_log",
+                        "minecraft:stripped_spruce_log",
+                        "minecraft:stripped_jungle_log",
+                        "minecraft:stripped_dark_oak_log",
+                        "minecraft:stripped_acacia_log",
+                        "minecraft:quartz_pillar",
+                        "minecraft:purpur_pillar"
+                    ],
+                    "outlets":[
+                        "minecraft:white_concrete",
+                        "minecraft:orange_concrete",
+                        "minecraft:magenta_concrete",
+                        "minecraft:light_blue_concrete",
+                        "minecraft:yellow_concrete",
+                        "minecraft:lime_concrete",
+                        "minecraft:pink_concrete",
+                        "minecraft:gray_concrete",
+                        "minecraft:light_gray_concrete",
+                        "minecraft:cyan_concrete",
+                        "minecraft:purple_concrete",
+                        "minecraft:blue_concrete",
+                        "minecraft:brown_concrete",
+                        "minecraft:green_concrete",
+                        "minecraft:red_concrete",
+                        "minecraft:black_concrete"
+                    ],
+                    "blade_materials":[
+                        "minecraft:purpur_block",
+                        "minecraft:purpur_stairs",
+                        "minecraft:purpur_slab",
+                        "minecraft:oak_planks",
+                        "minecraft:oak_stairs",
+                        "minecraft:oak_slab",
+                        "minecraft:cobblestone",
+                        "minecraft:cobblestone_stairs",
+                        "minecraft:cobblestone_slab",
+                        "minecraft:bricks",
+                        "minecraft:brick_stairs",
+                        "minecraft:brick_slab",
+                        "minecraft:stone_bricks",
+                        "minecraft:stone_brick_stairs",
+                        "minecraft:stone_brick_slab",
+                        "minecraft:nether_bricks",
+                        "minecraft:nether_brick_stairs",
+                        "minecraft:nether_brick_slab",
+                        "minecraft:sandstone",
+                        "minecraft:sandstone_stairs",
+                        "minecraft:sandstone_slab",
+                        "minecraft:spruce_planks",
+                        "minecraft:spruce_stairs",
+                        "minecraft:spruce_slab",
+                        "minecraft:birch_planks",
+                        "minecraft:birch_stairs",
+                        "minecraft:birch_slab",
+                        "minecraft:jungle_planks",
+                        "minecraft:jungle_stairs",
+                        "minecraft:jungle_slab",
+                        "minecraft:crimson_planks",
+                        "minecraft:crimson_stairs",
+                        "minecraft:crimson_slab",
+                        "minecraft:warped_planks",
+                        "minecraft:warped_stairs",
+                        "minecraft:warped_slab",
+                        "minecraft:quartz_block",
+                        "minecraft:quartz_stairs",
+                        "minecraft:quartz_slab",
+                        "minecraft:acacia_planks",
+                        "minecraft:acacia_stairs",
+                        "minecraft:acacia_slab",
+                        "minecraft:dark_oak_planks",
+                        "minecraft:dark_oak_stairs",
+                        "minecraft:dark_oak_slab",
+                        "minecraft:prismarine",
+                        "minecraft:prismarine_stairs",
+                        "minecraft:prismarine_slab",
+                        "minecraft:prismarine_bricks",
+                        "minecraft:prismarine_brick_stairs",
+                        "minecraft:prismarine_brick_slab",
+                        "minecraft:dark_prismarine",
+                        "minecraft:dark_prismarine_stairs",
+                        "minecraft:dark_prismarine_slab",
+                        "minecraft:red_sandstone",
+                        "minecraft:red_sandstone_stairs",
+                        "minecraft:red_sandstone_slab",
+                        "minecraft:polished_granite",
+                        "minecraft:polished_granite_stairs",
+                        "minecraft:polished_granite_slab",
+                        "minecraft:smooth_red_sandstone",
+                        "minecraft:smooth_red_sandstone_stairs",
+                        "minecraft:smooth_red_sandstone_slab",
+                        "minecraft:mossy_stone_bricks",
+                        "minecraft:mossy_stone_brick_stairs",
+                        "minecraft:mossy_stone_brick_slab",
+                        "minecraft:polished_diorite",
+                        "minecraft:polished_diorite_stairs",
+                        "minecraft:polished_diorite_slab",
+                        "minecraft:mossy_cobblestone",
+                        "minecraft:mossy_cobblestone_stairs",
+                        "minecraft:mossy_cobblestone_slab",
+                        "minecraft:end_stone_bricks",
+                        "minecraft:end_stone_brick_stairs",
+                        "minecraft:end_stone_brick_slab",
+                        "minecraft:stone",
+                        "minecraft:stone_stairs",
+                        "minecraft:stone_slab",
+                        "minecraft:smooth_sandstone",
+                        "minecraft:smooth_sandstone_stairs",
+                        "minecraft:smooth_sandstone_slab",
+                        "minecraft:smooth_quartz",
+                        "minecraft:smooth_quartz_stairs",
+                        "minecraft:smooth_quartz_slab",
+                        "minecraft:granite",
+                        "minecraft:granite_stairs",
+                        "minecraft:granite_slab",
+                        "minecraft:andesite",
+                        "minecraft:andesite_stairs",
+                        "minecraft:andesite_slab",
+                        "minecraft:red_nether_bricks",
+                        "minecraft:red_nether_brick_stairs",
+                        "minecraft:red_nether_brick_slab",
+                        "minecraft:polished_andesite",
+                        "minecraft:polished_andesite_stairs",
+                        "minecraft:polished_andesite_slab",
+                        "minecraft:diorite",
+                        "minecraft:diorite_stairs",
+                        "minecraft:diorite_slab",
+                        "minecraft:blackstone",
+                        "minecraft:blackstone_stairs",
+                        "minecraft:blackstone_slab",
+                        "minecraft:polished_blackstone",
+                        "minecraft:polished_blackstone_stairs",
+                        "minecraft:polished_blackstone_slab",
+                        "minecraft:polished_blackstone_bricks",
+                        "minecraft:polished_blackstone_brick_stairs",
+                        "minecraft:polished_blackstone_brick_slab",
+                        "minecraft:cobbled_deepslate",
+                        "minecraft:cobbled_deepslate_stairs",
+                        "minecraft:cobbled_deepslate_slab",
+                        "minecraft:polished_deepslate",
+                        "minecraft:polished_deepslate_stairs",
+                        "minecraft:polished_deepslate_slab",
+                        "minecraft:deepslate_brick",
+                        "minecraft:deepslate_brick_stairs",
+                        "minecraft:deepslate_brick_slab",
+                        "minecraft:deepslate_tile",
+                        "minecraft:deepslate_tile_stairs",
+                        "minecraft:deepslate_tile_slab",
+                        "minecraft:cut_copper",
+                        "minecraft:cut_copper_stairs",
+                        "minecraft:cut_copper_slab",
+                        "minecraft:exposed_cut_copper",
+                        "minecraft:exposed_cut_copper_stairs",
+                        "minecraft:exposed_cut_copper_slab",
+                        "minecraft:weathered_cut_copper",
+                        "minecraft:weathered_cut_copper_stairs",
+                        "minecraft:weathered_cut_copper_slab",
+                        "minecraft:oxidized_cut_copper",
+                        "minecraft:oxidized_cut_copper_stairs",
+                        "minecraft:oxidized_cut_copper_slab",
+                        "minecraft:waxed_cut_copper",
+                        "minecraft:waxed_cut_copper_stairs",
+                        "minecraft:waxed_cut_copper_slab",
+                        "minecraft:waxed_exposed_cut_copper",
+                        "minecraft:waxed_exposed_cut_copper_stairs",
+                        "minecraft:waxed_exposed_cut_copper_slab",
+                        "minecraft:waxed_weathered_cut_copper",
+                        "minecraft:waxed_weathered_cut_copper_stairs",
+                        "minecraft:waxed_weathered_cut_copper_slab",
+                        "minecraft:waxed_oxidized_cut_copper",
+                        "minecraft:waxed_oxidized_cut_copper_stairs",
+                        "minecraft:waxed_oxidized_cut_copper_slab"
+                    ]
+                },
+                {
+                    "type": "aeronautics:lift_cell",
+                    "min_size": 1,
+                    "max_size": 8,
+                    "interior":[
+                        {
+                            "materials": [
+                                "minecraft:snow_block"
+                            ],
+                            "lift": 100
+                        }
+                    ],
+                    "exterior":[
+                        {
+                            "materials": [
+                                "minecraft:snow_block"
+                            ],
+                            "lift": 100
+                        }
+                    ]
+                }
+            ],
+            "aerodynamic_settings": {
+                "aerodynamic_net": {
+                    "resolution_mult": 2,
+                    "step_size": 0.05,
+                    "geometric_normals": true,
+                    "blend": 1,
+                    "inflate": 0,
+                    "inflate_normal": 0,
+                    "flatness_power": 32,
+                    "flatness_penalty": 0.25,
+                    "side_weight": 1,
+                    "debug": {
+                        "enabled": false,
+                        "scale": 2,
+                        "normal_scale": 0,
+                        "colors": "aerodynamics_north"
+                    }
+                },
+                "gravity": 0.1,
+                "balancing": {
+                    "drift_multiplier": 1
+                },
+                "default_block_mass": 10,
+                "default_item_mass": 5,
+                "mass": [
+                    {
+                        "materials": [
+                            "minecraft:terracotta",
+                            "minecraft:white_terracotta",
+                            "minecraft:orange_terracotta",
+                            "minecraft:magenta_terracotta",
+                            "minecraft:light_blue_terracotta",
+                            "minecraft:yellow_terracotta",
+                            "minecraft:lime_terracotta",
+                            "minecraft:pink_terracotta",
+                            "minecraft:gray_terracotta",
+                            "minecraft:light_gray_terracotta",
+                            "minecraft:cyan_terracotta",
+                            "minecraft:purple_terracotta",
+                            "minecraft:blue_terracotta",
+                            "minecraft:brown_terracotta",
+                            "minecraft:green_terracotta",
+                            "minecraft:red_terracotta",
+                            "minecraft:black_terracotta"
+                        ],
+                        "mass": 10
+                    },
+                    {
+                        "materials": [
+                            "minecraft:white_concrete",
+                            "minecraft:orange_concrete",
+                            "minecraft:magenta_concrete",
+                            "minecraft:light_blue_concrete",
+                            "minecraft:yellow_concrete",
+                            "minecraft:lime_concrete",
+                            "minecraft:pink_concrete",
+                            "minecraft:gray_concrete",
+                            "minecraft:light_gray_concrete",
+                            "minecraft:cyan_concrete",
+                            "minecraft:purple_concrete",
+                            "minecraft:blue_concrete",
+                            "minecraft:brown_concrete",
+                            "minecraft:green_concrete",
+                            "minecraft:red_concrete",
+                            "minecraft:black_concrete",
+                            "minecraft:white_concrete_powder",
+                            "minecraft:orange_concrete_powder",
+                            "minecraft:magenta_concrete_powder",
+                            "minecraft:light_blue_concrete_powder",
+                            "minecraft:yellow_concrete_powder",
+                            "minecraft:lime_concrete_powder",
+                            "minecraft:pink_concrete_powder",
+                            "minecraft:gray_concrete_powder",
+                            "minecraft:light_gray_concrete_powder",
+                            "minecraft:cyan_concrete_powder",
+                            "minecraft:purple_concrete_powder",
+                            "minecraft:blue_concrete_powder",
+                            "minecraft:brown_concrete_powder",
+                            "minecraft:green_concrete_powder",
+                            "minecraft:red_concrete_powder",
+                            "minecraft:black_concrete_powder"
+                        ],
+                        "mass": 15
+                    },
+                    {
+                        "materials": [
+                            "minecraft:iron_block"
+                        ],
+                        "mass": 50
+                    },
+                    {
+                        "materials": [
+                            "minecraft:gold_block"
+                        ],
+                        "mass": 120
+                    },
+                    {
+                        "materials": [
+                            "minecraft:diamond_block"
+                        ],
+                        "mass": 22
+                    },
+                    {
+                        "materials": [
+                            "minecraft:lapis_block",
+                            "minecraft:emerald_block"
+                        ],
+                        "mass": 17
+                    },
+                    {
+                        "materials": [
+                            "minecraft:copper_block"
+                        ],
+                        "mass": 56
+                    }
+                ],
+                "item_mass_multiplier": 0.015625
+            }
+        }
+    ],
+    "allowed_blocks": [
+        "minecraft:iron_bars",
+        "minecraft:fire",
+        "#minecraft:wool",
+        "#minecraft:stairs",
+        "#minecraft:slabs",
+        "#minecraft:planks",
+        "minecraft:ladder",
+        "#minecraft:fences",
+        "minecraft:chiseled_stone_bricks",
+        "minecraft:water",
+        "minecraft:lava",
+        "minecraft:dispenser",
+        "minecraft:note_block",
+        "minecraft:piston",
+        "minecraft:tnt",
+        "minecraft:lever",
+        "#minecraft:pressure_plates",
+        "minecraft:redstone_torch",
+        "minecraft:redstone_wall_torch",
+        "#minecraft:buttons",
+        "#minecraft:trapdoors",
+        "#minecraft:fence_gates",
+        "minecraft:redstone_lamp",
+        "minecraft:tripwire_hook",
+        "minecraft:tripwire",
+        "minecraft:chest",
+        "minecraft:daylight_sensor",
+        "minecraft:redstone_block",
+        "minecraft:hopper",
+        "minecraft:dropper",
+        "minecraft:observer",
+        "#minecraft:doors",
+        "minecraft:repeater",
+        "minecraft:comparator",
+        "minecraft:redstone_wire",
+        "minecraft:lectern",
+        "#minecraft:beds",
+        "minecraft:crafting_table",
+        "minecraft:enchanter",
+        "minecraft:ender_chest",
+        "minecraft:bookshelf",
+        "minecraft:glass",
+        "minecraft:white_stained_glass",
+        "minecraft:orange_stained_glass",
+        "minecraft:magenta_stained_glass",
+        "minecraft:light_blue_stained_glass",
+        "minecraft:yellow_stained_glass",
+        "minecraft:lime_stained_glass",
+        "minecraft:pink_stained_glass",
+        "minecraft:gray_stained_glass",
+        "minecraft:light_gray_stained_glass",
+        "minecraft:cyan_stained_glass",
+        "minecraft:purple_stained_glass",
+        "minecraft:blue_stained_glass",
+        "minecraft:brown_stained_glass",
+        "minecraft:green_stained_glass",
+        "minecraft:red_stained_glass",
+        "minecraft:black_stained_glass",
+        "minecraft:glass_pane",
+        "minecraft:white_stained_glass_pane",
+        "minecraft:orange_stained_glass_pane",
+        "minecraft:magenta_stained_glass_pane",
+        "minecraft:light_blue_stained_glass_pane",
+        "minecraft:yellow_stained_glass_pane",
+        "minecraft:lime_stained_glass_pane",
+        "minecraft:pink_stained_glass_pane",
+        "minecraft:gray_stained_glass_pane",
+        "minecraft:light_gray_stained_glass_pane",
+        "minecraft:cyan_stained_glass_pane",
+        "minecraft:purple_stained_glass_pane",
+        "minecraft:blue_stained_glass_pane",
+        "minecraft:brown_stained_glass_pane",
+        "minecraft:green_stained_glass_pane",
+        "minecraft:red_stained_glass_pane",
+        "minecraft:black_stained_glass_pane",
+        "#minecraft:carpets",
+        "minecraft:loom",
+        "minecraft:barrel",
+        "minecraft:smoker",
+        "minecraft:blast_furnace",
+        "minecraft:furnace",
+        "minecraft:cartography_table",
+        "minecraft:fletching_table",
+        "minecraft:grindstone",
+        "minecraft:smithing_table",
+        "minecraft:stonecutter",
+        "minecraft:bell",
+        "minecraft:lantern",
+        "minecraft:torch",
+        "minecraft:wall_torch",
+        "minecraft:soul_torch",
+        "minecraft:soul_wall_torch",
+        "minecraft:glowstone",
+        "minecraft:end_rod",
+        "minecraft:sea_pickle",
+        "#minecraft:walls",
+        "#minecraft:signs",
+        "minecraft:player_head",
+        "minecraft:zombie_head",
+        "minecraft:creeper_head",
+        "minecraft:dragon_head",
+        "minecraft:skeleton_skull",
+        "minecraft:wither_skeleton_skull",
+        "minecraft:lapis_block",
+        "minecraft:gold_block",
+        "minecraft:iron_block",
+        "minecraft:diamond_block",
+        "minecraft:quartz_block",
+        "minecraft:purpur_block",
+        "minecraft:emerald_block",
+        "minecraft:chiseled_quartz_block",
+        "minecraft:smooth_quartz",
+        "minecraft:obsidian",
+        "minecraft:end_stone",
+        "minecraft:end_stone_brick",
+        "minecraft:nether_brick",
+        "minecraft:terracotta",
+        "minecraft:white_terracotta",
+        "minecraft:orange_terracotta",
+        "minecraft:magenta_terracotta",
+        "minecraft:light_blue_terracotta",
+        "minecraft:yellow_terracotta",
+        "minecraft:lime_terracotta",
+        "minecraft:pink_terracotta",
+        "minecraft:gray_terracotta",
+        "minecraft:light_gray_terracotta",
+        "minecraft:cyan_terracotta",
+        "minecraft:purple_terracotta",
+        "minecraft:blue_terracotta",
+        "minecraft:brown_terracotta",
+        "minecraft:green_terracotta",
+        "minecraft:red_terracotta",
+        "minecraft:black_terracotta",
+        "minecraft:stone_bricks",
+        "minecraft:white_concrete",
+        "minecraft:orange_concrete",
+        "minecraft:magenta_concrete",
+        "minecraft:light_blue_concrete",
+        "minecraft:yellow_concrete",
+        "minecraft:lime_concrete",
+        "minecraft:pink_concrete",
+        "minecraft:gray_concrete",
+        "minecraft:light_gray_concrete",
+        "minecraft:cyan_concrete",
+        "minecraft:purple_concrete",
+        "minecraft:blue_concrete",
+        "minecraft:brown_concrete",
+        "minecraft:green_concrete",
+        "minecraft:red_concrete",
+        "minecraft:black_concrete",
+        "#minecraft:logs",
+        "minecraft:basalt",
+        "minecraft:polished_basalt",
+        "minecraft:quartz_pillar",
+        "minecraft:purpur_pillar",
+        "minecraft:chain"
+    ],
+    "banned_blocks":[
+        "minecraft:cobblestone",
+        "minecraft:cobblestone_stairs",
+        "minecraft:cobblestone_slab",
+        "minecraft:dark_oak_stairs",
+        "minecraft:dark_oak_slab",
+        "minecraft:dark_oak_fence",
+        "minecraft:dark_oak_planks"
+    ]
+}
