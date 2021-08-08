@@ -1,4 +1,5 @@
 package com.thizthizzydizzy.aeronautics.craft;
+import com.thizthizzydizzy.aeronautics.craft.collision_handler.CollisionHandler;
 import com.thizthizzydizzy.aeronautics.craft.detector.CraftDetector;
 import com.thizthizzydizzy.aeronautics.craft.engine.Engine;
 import com.thizthizzydizzy.aeronautics.craft.sink_handler.SinkHandler;
@@ -27,6 +28,7 @@ public class CraftType{
     public int combatPilots;
     public int combatCrew;
     public CraftDetector detector;
+    public CollisionHandler collisionHandler;
     public SinkHandler sinkHandler;
     public int onBoardThreshold = 2;
     public CraftType(String name, int minSize, int maxSize){

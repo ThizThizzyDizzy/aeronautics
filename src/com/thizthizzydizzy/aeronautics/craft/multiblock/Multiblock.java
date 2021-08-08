@@ -40,7 +40,7 @@ public abstract class Multiblock{
         for(Block block : blocks){
             movements.add(new BlockMovement(block.getLocation(), craft.rotate(block.getLocation(), origin, rotation), rotation));
         }
-        Iterable<Entity> entities = craft.subMove(blocks, movements, true, false);
+        Iterable<Entity> entities = craft.move(blocks, movements, craft.type.mediums);
         if(entities==null)return false;
         for(Entity e : entities){
             Location l = e.getLocation();

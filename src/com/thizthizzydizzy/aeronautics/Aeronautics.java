@@ -2,6 +2,9 @@ package com.thizthizzydizzy.aeronautics;
 import com.thizthizzydizzy.aeronautics.craft.Craft;
 import com.thizthizzydizzy.aeronautics.craft.CraftSign;
 import com.thizthizzydizzy.aeronautics.craft.CraftType;
+import com.thizthizzydizzy.aeronautics.craft.collision_handler.CollisionHandler;
+import com.thizthizzydizzy.aeronautics.craft.collision_handler.StandardCollisionHandler;
+import com.thizthizzydizzy.aeronautics.craft.collision_handler.StopCollisionHandler;
 import com.thizthizzydizzy.aeronautics.craft.detector.CraftDetector;
 import com.thizthizzydizzy.aeronautics.craft.detector.StandardDetector;
 import com.thizthizzydizzy.aeronautics.craft.engine.Engine;
@@ -35,6 +38,7 @@ public class Aeronautics extends JavaPlugin{
     public final ArrayList<CraftType> craftTypes = new ArrayList<>();
     private boolean debug = true;//TODO /aeronautics debug
     public final ArrayList<CraftDetector> detectors = new ArrayList<>();
+    public final ArrayList<CollisionHandler> collisionHandlers = new ArrayList<>();
     public final ArrayList<SinkHandler> sinkHandlers = new ArrayList<>();
     private ArrayList<Craft> crafts = new ArrayList<>();
     public static final HashSet<Material> blocksThatPop = new HashSet<>();
@@ -199,6 +203,8 @@ public class Aeronautics extends JavaPlugin{
     {
         detectors.add(new StandardDetector(this));
         sinkHandlers.add(new FallSinkHandler(this));
+        collisionHandlers.add(new StandardCollisionHandler(this));
+        collisionHandlers.add(new StopCollisionHandler(this));
     }
     public void onEnable(){
         PluginDescriptionFile pdfFile = getDescription();

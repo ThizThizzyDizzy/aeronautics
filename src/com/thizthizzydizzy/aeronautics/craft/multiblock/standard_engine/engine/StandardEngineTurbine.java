@@ -9,7 +9,6 @@ import com.thizthizzydizzy.aeronautics.craft.multiblock.standard_engine.PowerUse
 import java.util.ArrayList;
 import java.util.List;
 import org.bukkit.block.Block;
-import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Orientable;
 public class StandardEngineTurbine extends Multiblock implements PowerUser{
     private final CraftEngine engine;
@@ -49,8 +48,8 @@ public class StandardEngineTurbine extends Multiblock implements PowerUser{
                 if(i>turbine.maxLength)continue;//don't worry about blade searching; just checking for extra outlets
                 Direction up, right;
                 if(dir.isVertical()){
-                    up = dir.NORTH;
-                    right = dir.EAST;
+                    up = Direction.NORTH;
+                    right = Direction.EAST;
                 }else{
                     up = dir.get2DY().getOpposite();
                     right = dir.get2DX().getOpposite();

@@ -53,7 +53,7 @@ public class FallSinkHandler extends SinkHandler{
             for(Block block : craft.blocks){
                 movements.add(new Craft.BlockMovement(block, block.getRelative(BlockFace.DOWN)));
             }
-            craft.move(craft.blocks, movements, true, true);
+            craft.move(craft.blocks, movements, craft.type.mediums);
         }
     }
     

@@ -12,6 +12,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import org.bukkit.Axis;
 import org.bukkit.Bukkit;
@@ -56,6 +58,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Hanging;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.util.BoundingBox;
 public class Craft{
     public final Aeronautics aeronautics;
@@ -74,6 +77,7 @@ public class Craft{
     public boolean dead = false;
     private Mode mode = Mode.IDLE;
     private int modeTimer;
+    public Random rand = new Random();
     public HashMap<Block, BlockState> was = new HashMap<>();//the list of blocks this ship is currently displacing (ex. water blocks when submerged, air blocks when in air, etc.)
     /**
      * All multiblocks that *can* exist on this craft
@@ -321,7 +325,7 @@ public class Craft{
                                 continue;
                             }
                             if(blocks.contains(b)||blocks.contains(newBlock)){
-                                if(isWaterConnected(b,newBlock)){
+                                if(isFluidConnected(b,newBlock)){
                                     nextLayer.add(newBlock);
                                     if(blocks.contains(b))outerHull.add(newBlock);
                                 }
@@ -338,10 +342,16 @@ public class Craft{
         innerShip.removeAll(outsideBlocks);
         innerShip.removeAll(outerHull);
     }
-    private boolean isWaterConnected(Block a, Block b){
+    /**
+     * Checks if fluid can flow from one block to another based on block shape (stairs, slabs, etc.)
+     * @param a one block
+     * @param b another
+     * @return true if fluid can flow from one block to another
+     */
+    private boolean isFluidConnected(Block a, Block b){
         BlockFace face = a.getFace(b);
-        int A = isWaterConnected(a, face);
-        int B = isWaterConnected(b, face.getOppositeFace());
+        int A = isFluidConnected(a, face);
+        int B = isFluidConnected(b, face.getOppositeFace());
         if(A+B>=3)return true;
         if(A==0||B==0)return false;
         boolean anw = false;
@@ -505,7 +515,13 @@ public class Craft{
         }
         return !((anw||bnw)&&(ane||bne)&&(asw||bsw)&&(ase||bse));
     }
-    private int isWaterConnected(Block b, BlockFace face){
+    /**
+     * Checks if fluid can flow from a block in a certain direction based on block shape (stairs, slabs, etc.)
+     * @param a one block
+     * @param face the direction fluid is trying to flow
+     * @return no clue honestly
+     */
+    private int isFluidConnected(Block b, BlockFace face){
         switch(b.getType()){
             case BUBBLE_COLUMN:
             case CHEST:
@@ -745,7 +761,7 @@ public class Craft{
         }
         bbox =  new BoundingBox(x1, y1, z1, x2+1, y2+1, z2+1);
     }
-    public boolean move(int x, int y, int z, boolean allowUnderwater){
+    public boolean move(int x, int y, int z, List<Medium> mediums){
         aeronautics.debug(pilots, "Moving "+x+" "+y+" "+z);
         ArrayList<BlockMovement> movements = new ArrayList<>();
         aeronautics.debug(pilots, "Compiling BlockMovements");
@@ -753,12 +769,14 @@ public class Craft{
             movements.add(new BlockMovement(block.getLocation(), block.getRelative(x,y,z).getLocation()));
         }
         aeronautics.debug(pilots, "Compiled BlockMovements");
-        return move(blocks, movements, allowUnderwater, false)!=null;
+        return move(blocks, movements, mediums)!=null;
     }
-    public Iterable<Entity> move(Collection<Block> blocks, Collection<BlockMovement> movements, boolean allowUnderwater, boolean force){//TODO mediums
+    public Iterable<Entity> move(Collection<Block> blocks, Collection<BlockMovement> movements, List<Medium> mediums){//TODO mediums
         if(blocks.isEmpty())return null;
-        boolean underwaterMove = isUnderwater(false)&&allowUnderwater;
-        int waterLevel = 0;
+        boolean allowUnderwater = false;
+        for(Medium medium : mediums)if(medium.blocks.contains(Material.WATER))allowUnderwater = true;
+        boolean underwaterMove = isUnderwater(false)&&allowUnderwater;//used for waterlogged calculations
+        int waterLevel = 0;//used for waterlogged calculations
         if(underwaterMove)waterLevel = getWaterLevel();
         HashMap<Entity, Location> entityMovements = new HashMap<>();
         HashMap<OfflinePlayer, Location> spawnMovements = new HashMap<>();
@@ -802,31 +820,49 @@ public class Craft{
                 }
             }
         }
-        if(!force){
-            aeronautics.debug(pilots, "Checking Collisions");
-            for(BlockMovement movement : movements){
-                Block newLocation = world.getBlockAt(movement.to);
-                if(!world.getBlockAt(movement.from).getChunk().isLoaded()||!newLocation.getChunk().isLoaded()){
-                    notifyPilots("Ship not loaded! ("+newLocation.getX()+","+newLocation.getY()+","+newLocation.getZ()+")", newLocation.getLocation(), Sound.ENTITY_WITHER_AMBIENT, .5f);
-                    for(CraftEngine e : engines){
-                        e.getEngine().onUnload(e);
+        aeronautics.debug(pilots, "Checking Collisions");
+        for(Iterator<BlockMovement> it = movements.iterator(); it.hasNext();){
+            BlockMovement movement = it.next();
+            Block newLocation = world.getBlockAt(movement.to);
+            if(!world.getBlockAt(movement.from).getChunk().isLoaded()||!newLocation.getChunk().isLoaded()){
+                notifyPilots("Ship not loaded! ("+newLocation.getX()+","+newLocation.getY()+","+newLocation.getZ()+")", newLocation.getLocation(), Sound.ENTITY_WITHER_AMBIENT, .5f);
+                for(CraftEngine e : engines){
+                    e.getEngine().onUnload(e);
+                }
+                return null;
+            }
+            if(!blocks.contains(newLocation)){
+                boolean collide = true;
+                var type = newLocation.getType();
+                for(Medium medium : mediums){
+                    if(medium.blocks.contains(type)){
+                        collide = false;
+                        break;
                     }
-                    return null;
                 }
-                if(!(blocks.contains(newLocation)||newLocation.getType()==Material.AIR||newLocation.getType()==Material.CAVE_AIR||newLocation.getType()==Material.FIRE||(underwaterMove&&(newLocation.getType()==Material.WATER||newLocation.getType()==Material.BUBBLE_COLUMN)))){
-                    //TODO special collisions
-                    notifyPilots("Subcraft obstructed by "+newLocation.getType().toString()+"! ("+newLocation.getX()+","+newLocation.getY()+","+newLocation.getZ()+")",  newLocation.getLocation(), Sound.BLOCK_ANVIL_LAND, .5f);
-                    return null;
+                if(collide){
+                    switch(this.type.collisionHandler.collide(this, blocks, movements, movement, mediums)){
+                        case CANCEL -> {
+                            return null;
+                        }
+                        case BREAK -> {
+                            removeBlock(null, newLocation, true);
+                            it.remove();
+                        }
+                        case BREAK_OTHER -> {
+                            newLocation.setType(Material.AIR);//TODO what about other crafts?
+                        }
+                    }
                 }
             }
-            for(CraftEngine e : engines){
-                e.getEngine().onMoved(e);
-            }
+        }
+        for(CraftEngine e : engines){
+            e.getEngine().onMoved(e);
         }
         aeronautics.debug(pilots, "Prepared Move");
         ArrayList<BlockChange> changes = new ArrayList<>();
         ArrayList<Block> newBlocks = new ArrayList<>();
-        HashSet<Block> blox = new HashSet<>(blocks);
+        HashSet<Block> blox = new HashSet<>(blocks);//blocks that will be reset //TODO what about the interior?
         for(BlockMovement movement : movements){ 
             Block movesFrom = world.getBlockAt(movement.from);
             Block movesTo = world.getBlockAt(movement.to);
@@ -837,7 +873,7 @@ public class Craft{
             blox.remove(movesTo);
         }
         aeronautics.debug(pilots, "Mid-compiled BlockChanges");
-        finishCompilingBlockChanges(underwaterMove, waterLevel, changes, blox);
+        finishCompilingBlockChanges(mediums, changes, blox);
         Collections.sort(changes);
         aeronautics.debug(pilots, "Sorted BlockChanges");
 //        int created = 0;
@@ -1193,25 +1229,27 @@ public class Craft{
         }
         return max;
     }
-    private void finishCompilingBlockChanges(boolean underwaterMove, int waterLevel, ArrayList<BlockChange> changes, Set<Block> blox){
+    /**
+     * Adds block changes to reset blocks to the medium material (where the ship is moving out of)
+     * @param mediums a list of mediums the ship may pass through
+     * @param changes a list to add block changes to
+     * @param blox a list of blocks that are to be reset
+     */
+    private void finishCompilingBlockChanges(List<Medium> mediums, ArrayList<BlockChange> changes, Set<Block> blox){
         int A = 0;
         int B = 0;
-        int C = 0;
         for(Block block : blox){
-            if(underwaterMove){
-                if(block.getY()>waterLevel){
-                    changes.add(new BlockChange(block, Material.AIR, null, null));
-                    A++;
-                }else{
-                    changes.add(new BlockChange(block, Material.WATER, null, null));
-                    B++;
-                }
+            if(was.containsKey(block)){
+                var itWas = was.get(block);
+                changes.add(new BlockChange(block, itWas.getType(), itWas.getBlockData(), itWas));
+                was.remove(block);
+                A++;
             }else{
                 changes.add(new BlockChange(block, Material.AIR, null, null));
-                C++;
+                B++;
             }
         }
-        aeronautics.debug(pilots, "Compiled BlockChanges "+A+" "+B+" "+C);
+        aeronautics.debug(pilots, "Compiled BlockChanges "+A+" "+B);
     }
     public boolean contains(Sign sign){
         return getSigns().contains(sign);
@@ -1316,7 +1354,7 @@ public class Craft{
         if(player==null)notifyCrew(message);
         else player.sendMessage(message);
     }
-    public boolean rotate(Location origin, int rotation, boolean allowUnderwater){
+    public boolean rotate(Location origin, int rotation, List<Medium> mediums){
         origin.setX(Math.round(origin.getX()));
         origin.setY(Math.round(origin.getY()));
         origin.setZ(Math.round(origin.getZ()));
@@ -1326,7 +1364,7 @@ public class Craft{
         for(Block block : getMovableBlocks()){
             movements.add(new BlockMovement(block.getLocation(), rotate(block.getLocation(), origin, rotation), rotation));
         }
-        Iterable<Entity> entities = move(blocks, movements, allowUnderwater, false);
+        Iterable<Entity> entities = move(blocks, movements, mediums);
         for(Multiblock multiblock : multiblocks){
             multiblock.onRotated(rotation);
         }

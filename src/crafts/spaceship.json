@@ -45,6 +45,9 @@
     "detector": {
         "name": "aeronautics:standard"
     },
+    "collision_handler": {
+        "name": "aeronautics:standard"
+    },
     "sink_handler": {
         "name": "aeronautics:fall",
         "sink_move_time": 10

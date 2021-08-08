@@ -336,4 +336,8 @@ public class StandardEngine extends Engine{
             eds.getMultiblockTypes(engine, this, multiblockTypes);
         }
     }
+    public int getMass(Material m){
+        if(blockMass.containsKey(m))return blockMass.get(m);
+        return m.isBlock()?defaultBlockMass:defaultItemMass;
+    }
 }

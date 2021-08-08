@@ -456,7 +456,7 @@ public class LegacyStandardEngine extends Engine{
             if(checkDisabled(engine))return false;
             if(!checkFuel(engine))return false;
         }
-        return engine.getCraft().move(x,y,z, (!diveBlocks.isEmpty()&&canDive(engine))||(!diveBlocks.isEmpty()&&!liftBlocks.isEmpty()&&canFly(engine)&&!canDive(engine)));
+        return engine.getCraft().move(x,y,z, ((!diveBlocks.isEmpty()&&canDive(engine))||(!diveBlocks.isEmpty()&&!liftBlocks.isEmpty()&&canFly(engine)&&!canDive(engine)))?engine.getCraft().type.mediums:Arrays.asList(engine.getCraft().type.mediums.get(0)));
     }
     /**
      * Checks to see if the craft is disabled, and if so, notifies the pilots.
@@ -585,7 +585,7 @@ public class LegacyStandardEngine extends Engine{
     private void doRotate(CraftEngine engine, int rotation){
         if(checkDisabled(engine))return;
         if(!checkFuel(engine))return;
-        if(engine.getCraft().rotate(engine.getCraft().getOrigin().clone().subtract(.5,.5,.5), rotation, canDive(engine))){
+        if(engine.getCraft().rotate(engine.getCraft().getOrigin().clone().subtract(.5,.5,.5), rotation, canDive(engine)?engine.getCraft().type.mediums:Arrays.asList(engine.getCraft().type.mediums.get(0)))){
             rotate(engine, -rotation);
             while(rotation<0)rotation+=4;
             while(rotation>0){

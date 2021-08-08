@@ -5,6 +5,7 @@ import com.thizthizzydizzy.aeronautics.craft.Message;
 import com.thizthizzydizzy.aeronautics.craft.engine.standard.StandardEngine;
 import com.thizthizzydizzy.aeronautics.craft.engine.standard.SubEngine;
 import com.thizthizzydizzy.aeronautics.craft.multiblock.Multiblock;
+import com.thizthizzydizzy.aeronautics.craft.multiblock.standard_engine.engine.StandardEngineTurbine;
 import com.thizthizzydizzy.vanillify.Vanillify;
 import java.util.ArrayList;
 import org.bukkit.Material;
@@ -45,12 +46,10 @@ public class Turbine extends SubEngine{
         return new Turbine();
     }
     @Override
-    public void init(CraftEngine engine, StandardEngine standardEngine){
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
+    public void init(CraftEngine engine, StandardEngine standardEngine){}
     @Override
     public void updateHull(CraftEngine engine, StandardEngine standardEngine, int damage, boolean damaged){
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new UnsupportedOperationException("Not supported yet.");
     }
     @Override
     public void getMessages(CraftEngine engine, StandardEngine standardEngine, ArrayList<Message> messages){
@@ -58,6 +57,6 @@ public class Turbine extends SubEngine{
     }
     @Override
     public void getMultiblockTypes(CraftEngine engine, StandardEngine standardEngine, ArrayList<Multiblock> multiblockTypes){
-        throw new UnsupportedOperationException("Not supported yet.");
+        multiblockTypes.add(new StandardEngineTurbine(engine, standardEngine, this));
     }
 }

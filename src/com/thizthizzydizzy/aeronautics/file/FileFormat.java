@@ -5,6 +5,7 @@ import com.thizthizzydizzy.aeronautics.JSON.JSONArray;
 import com.thizthizzydizzy.aeronautics.JSON.JSONObject;
 import com.thizthizzydizzy.aeronautics.craft.CraftType;
 import com.thizthizzydizzy.aeronautics.craft.Medium;
+import com.thizthizzydizzy.aeronautics.craft.collision_handler.CollisionHandler;
 import com.thizthizzydizzy.aeronautics.craft.detector.CraftDetector;
 import com.thizthizzydizzy.aeronautics.craft.engine.Engine;
 import com.thizthizzydizzy.aeronautics.craft.sink_handler.SinkHandler;
@@ -51,6 +52,15 @@ public abstract class FileFormat{
                     throw new IllegalArgumentException("Invalid craft detector: "+detectorName+"!");
                 }
                 type.detector.load(detectorObj);
+                JSONObject collisionHandlerObj = json.getJSONObject("collision_handler");
+                String collisionHandlerName = collisionHandlerObj.getString("name");
+                for(CollisionHandler collisionHandler : aeronautics.collisionHandlers){
+                    if(collisionHandler.getName().equals(collisionHandlerName))type.collisionHandler = collisionHandler.newInstance();
+                }
+                if(type.collisionHandler==null){
+                    throw new IllegalArgumentException("Invalid collision handler: "+collisionHandlerName+"!");
+                }
+                type.collisionHandler.load(collisionHandlerObj);
                 JSONObject handlerObj = json.getJSONObject("sink_handler");
                 String handlerName = handlerObj.getString("name");
                 for(SinkHandler handler : aeronautics.sinkHandlers){
