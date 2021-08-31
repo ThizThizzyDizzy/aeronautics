@@ -3,10 +3,6 @@ import com.thizthizzydizzy.aeronautics.JSON.JSONObject;
 import com.thizthizzydizzy.aeronautics.craft.CraftEngine;
 import com.thizthizzydizzy.aeronautics.craft.CraftSign;
 import com.thizthizzydizzy.aeronautics.craft.Message;
-import com.thizthizzydizzy.aeronautics.craft.engine.standard.EnergyDistributionSystem;
-import com.thizthizzydizzy.aeronautics.craft.engine.standard.Generator;
-import com.thizthizzydizzy.aeronautics.craft.engine.standard.StandardEngine;
-import com.thizthizzydizzy.aeronautics.craft.engine.standard.SubEngine;
 import com.thizthizzydizzy.aeronautics.craft.multiblock.Multiblock;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -15,14 +11,9 @@ import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 public abstract class Engine{
-    private static ArrayList<Engine> engines = new ArrayList<>();
+    public static ArrayList<Engine> engines = new ArrayList<>();//TODO make this not static
     public static void init(){
         engines.clear();
-        engines.add(new LegacyStandardEngine());
-        EnergyDistributionSystem.init();
-        Generator.init();
-        SubEngine.init();
-        engines.add(new StandardEngine());
     }
     public static void createSigns(){
         for(Engine e : engines){
@@ -77,4 +68,5 @@ public abstract class Engine{
         return types;
     }
     public abstract void getMultiblockTypes(CraftEngine engine, ArrayList<Multiblock> multiblockTypes);
+    public void onRegister(){}
 }

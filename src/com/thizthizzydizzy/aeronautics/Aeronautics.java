@@ -8,9 +8,31 @@ import com.thizthizzydizzy.aeronautics.craft.collision_handler.StopCollisionHand
 import com.thizthizzydizzy.aeronautics.craft.detector.CraftDetector;
 import com.thizthizzydizzy.aeronautics.craft.detector.StandardDetector;
 import com.thizthizzydizzy.aeronautics.craft.engine.Engine;
+import com.thizthizzydizzy.aeronautics.craft.engine.LegacyStandardEngine;
+import com.thizthizzydizzy.aeronautics.craft.engine.standard.StandardEngine;
+import com.thizthizzydizzy.aeronautics.craft.engine.standard.eds.DuctedEDS;
+import com.thizthizzydizzy.aeronautics.craft.engine.standard.eds.OmnipresentEDS;
+import com.thizthizzydizzy.aeronautics.craft.engine.standard.engine.LiftCell;
+import com.thizthizzydizzy.aeronautics.craft.engine.standard.engine.Turbine;
+import com.thizthizzydizzy.aeronautics.craft.engine.standard.generator.FurnaceGenerator;
+import com.thizthizzydizzy.aeronautics.craft.engine.standard.generator.SingleBlockGenerator;
+import com.thizthizzydizzy.aeronautics.craft.engine.standard.generator.TestGenerator;
 import com.thizthizzydizzy.aeronautics.craft.sink_handler.FallSinkHandler;
 import com.thizthizzydizzy.aeronautics.craft.sink_handler.SinkHandler;
+import com.thizthizzydizzy.aeronautics.craft.special.BlockResistance;
+import com.thizthizzydizzy.aeronautics.craft.special.DamageReport;
+import com.thizthizzydizzy.aeronautics.craft.special.FireChargeDirector;
+import com.thizthizzydizzy.aeronautics.craft.special.FireChargeLifespan;
+import com.thizthizzydizzy.aeronautics.craft.special.MobSpawnProtection;
+import com.thizthizzydizzy.aeronautics.craft.special.PointDefenseCannon;
 import com.thizthizzydizzy.aeronautics.craft.special.Special;
+import static com.thizthizzydizzy.aeronautics.craft.special.Special.specials;
+import com.thizthizzydizzy.aeronautics.craft.special.SpillProtection;
+import com.thizthizzydizzy.aeronautics.craft.special.TNTDirector;
+import com.thizthizzydizzy.aeronautics.craft.special.TNTImpactDetonation;
+import com.thizthizzydizzy.aeronautics.craft.special.TNTTracer;
+import com.thizthizzydizzy.aeronautics.craft.special.LegacyTurbine;
+import com.thizthizzydizzy.aeronautics.craft.special.VerticalTurbine;
 import com.thizthizzydizzy.aeronautics.file.FileFormat;
 import com.thizthizzydizzy.aeronautics.listener.BlockListener;
 import com.thizthizzydizzy.aeronautics.listener.EntityListener;
@@ -21,6 +43,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -28,13 +51,14 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.type.WallSign;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
 import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
-public class Aeronautics extends JavaPlugin{
-    public static final String[] helm = {"\\  |  /","-       -","/  |  \\"};
+public class Aeronautics extends JavaPlugin implements Listener{
     public final ArrayList<CraftType> craftTypes = new ArrayList<>();
     private boolean debug = true;//TODO /aeronautics debug
     public final ArrayList<CraftDetector> detectors = new ArrayList<>();
@@ -200,17 +224,64 @@ public class Aeronautics extends JavaPlugin{
         blocksThatPop.add(Material.CYAN_BED);
         blocksThatPop.add(Material.BROWN_BED);
     }
-    {
-        detectors.add(new StandardDetector(this));
-        sinkHandlers.add(new FallSinkHandler(this));
-        collisionHandlers.add(new StandardCollisionHandler(this));
-        collisionHandlers.add(new StopCollisionHandler(this));
+    @EventHandler
+    public void init(AeronauticsInitializationEvent event){
+        event.registerCraftDetector(new StandardDetector(this));
+        event.registerSinkHandler(new FallSinkHandler(this));
+        event.registerCollisionHandler(new StandardCollisionHandler(this));
+        event.registerCollisionHandler(new StopCollisionHandler(this));
+        event.registerEngine(new LegacyStandardEngine());
+        event.registerEngine(new StandardEngine());
+        event.registerSpecial(new FireChargeLifespan());
+        event.registerSpecial(new FireChargeDirector());
+        event.registerSpecial(new TNTDirector());
+        event.registerSpecial(new BlockResistance());
+        event.registerSpecial(new TNTTracer());
+        event.registerSpecial(new SpillProtection());
+        event.registerSpecial(new TNTImpactDetonation());
+        event.registerSpecial(new MobSpawnProtection());
+        event.registerSpecial(new PointDefenseCannon());
+        event.registerSpecial(new DamageReport());
+        event.registerSpecial(new LegacyTurbine());
+        event.registerSpecial(new VerticalTurbine());
     }
+    @EventHandler
+    public void initStandardEngine(StandardEngineInitializationEvent event){
+        event.registerEnergyDistributionSystem(new OmnipresentEDS());
+        event.registerEnergyDistributionSystem(new DuctedEDS());
+        event.registerGenerator(new FurnaceGenerator());
+        event.registerGenerator(new SingleBlockGenerator());
+        event.registerGenerator(new TestGenerator());
+        event.registerEngine(new Turbine());
+        event.registerEngine(new LiftCell());
+    }
+    public void registerCraftDetector(CraftDetector detector){
+        detectors.add(detector);
+    }
+    public void registerSinkHandler(SinkHandler handler){
+        sinkHandlers.add(handler);
+    }
+    public void registerCollisionHandler(CollisionHandler handler){
+        collisionHandlers.add(handler);
+    }
+    public void registerEngine(Engine engine){
+        Engine.engines.add(engine);
+        engine.onRegister();
+    }
+    public void registerSpecial(Special special){
+        Special.specials.add(special);
+        special.onRegister();
+    }
+    @Override
     public void onEnable(){
         PluginDescriptionFile pdfFile = getDescription();
         Logger logger = getLogger();
-        //<editor-fold defaultstate="collapsed" desc="Register Events">
         PluginManager pm = getServer().getPluginManager();
+        pm.registerEvents(this, this); //register self initialization event
+        Engine.init();
+        Special.init();
+        pm.callEvent(new AeronauticsInitializationEvent(this));
+        //<editor-fold defaultstate="collapsed" desc="Register Events">
         pm.registerEvents(new PlayerListener(this), this);
         pm.registerEvents(new BlockListener(this), this);
         pm.registerEvents(new EntityListener(this), this);
@@ -219,8 +290,6 @@ public class Aeronautics extends JavaPlugin{
         saveDefaultConfig();
         getConfig().options().copyDefaults(true);
 //</editor-fold>
-        Engine.init();
-        Special.init();
         //<editor-fold defaultstate="collapsed" desc="Load craft types">
         File craftsFolder = new File(getDataFolder(), "crafts");
         if(!craftsFolder.exists()){
@@ -270,14 +339,12 @@ public class Aeronautics extends JavaPlugin{
 //        getCommand("aeronautics").setExecutor(new CommandAeronautics(this));
         logger.log(Level.INFO, "{0} has been enabled! (Version {1}) by ThizThizzyDizzy", new Object[]{pdfFile.getName(), pdfFile.getVersion()});
     }
+    @Override
     public void onDisable(){
         tickLoop.cancel();
         PluginDescriptionFile pdfFile = getDescription();
         Logger logger = getLogger();
         logger.log(Level.INFO, "{0} has been disabled! (Version {1}) by ThizThizzyDizzy", new Object[]{pdfFile.getName(), pdfFile.getVersion()});
-    }
-    public static boolean isHelm(String... lines){
-        return (lines.length>=1&&lines[0].equalsIgnoreCase("[helm]"))||lines.length>=3&&lines[0].equals(helm[0])&&lines[1].equals(helm[1])&&lines[2].equals(helm[2]);
     }
     public void debug(Player player, String message){
         if(debug)player.sendMessage(message);

@@ -29,6 +29,10 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.FurnaceInventory;
 import org.bukkit.inventory.ItemStack;
 public class LegacyStandardEngine extends Engine{
+    public static final String[] helm = {"\\  |  /","-       -","/  |  \\"};
+    public static boolean isHelm(String... lines){
+        return (lines.length>=1&&lines[0].equalsIgnoreCase("[helm]"))||lines.length>=3&&lines[0].equals(helm[0])&&lines[1].equals(helm[1])&&lines[2].equals(helm[2]);
+    }
     public HashMap<Material, Integer> fuels = new HashMap<>();
     public ArrayList<BlockRequirement> liftBlocks = new ArrayList<>();
     public ArrayList<BlockRequirement> diveBlocks = new ArrayList<>();
@@ -223,7 +227,7 @@ public class LegacyStandardEngine extends Engine{
             public boolean matches(Craft craft, Sign sign){
                 if(craft==null)return false;//no craft can't rotate :3
                 if(!craft.hasEngine(LegacyStandardEngine.this.getName()))return false;//this engine isn't on that craft
-                return Aeronautics.isHelm(sign.getLines())||sign.getLine(0).trim().equalsIgnoreCase("[helm]");
+                return isHelm(sign.getLines())||sign.getLine(0).trim().equalsIgnoreCase("[helm]");
             }
             @Override
             public void click(Craft craft, Sign sign, PlayerInteractEvent event){
@@ -238,8 +242,8 @@ public class LegacyStandardEngine extends Engine{
             @Override
             public void update(Craft craft, Sign sign){
                 CraftEngine engine = craft.getEngine(LegacyStandardEngine.this.getName());
-                for(int i = 0; i<Aeronautics.helm.length; i++){
-                    sign.setLine(i, Aeronautics.helm[i]);
+                for(int i = 0; i<helm.length; i++){
+                    sign.setLine(i, helm[i]);
                 }
                 int rotation = ((LegacyStandardEngine)engine.getEngine()).getRotate(engine);
                 String rotStr = "";

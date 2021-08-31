@@ -2,16 +2,12 @@ package com.thizthizzydizzy.aeronautics.craft.engine.standard;
 import com.thizthizzydizzy.aeronautics.JSON.JSONObject;
 import com.thizthizzydizzy.aeronautics.craft.CraftEngine;
 import com.thizthizzydizzy.aeronautics.craft.Message;
-import com.thizthizzydizzy.aeronautics.craft.engine.standard.eds.DuctedEDS;
-import com.thizthizzydizzy.aeronautics.craft.engine.standard.eds.OmnipresentEDS;
 import com.thizthizzydizzy.aeronautics.craft.multiblock.Multiblock;
 import java.util.ArrayList;
 public abstract class EnergyDistributionSystem{
-    private static ArrayList<EnergyDistributionSystem> energyDistributionSystems = new ArrayList<>();
+    public static ArrayList<EnergyDistributionSystem> energyDistributionSystems = new ArrayList<>();
     public static void init(){
         energyDistributionSystems.clear();
-        energyDistributionSystems.add(new OmnipresentEDS());
-        energyDistributionSystems.add(new DuctedEDS());
     }
     private final String definitionName, name;
     public EnergyDistributionSystem(String definitionName){

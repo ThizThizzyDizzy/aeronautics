@@ -2,16 +2,12 @@ package com.thizthizzydizzy.aeronautics.craft.engine.standard;
 import com.thizthizzydizzy.aeronautics.JSON;
 import com.thizthizzydizzy.aeronautics.craft.CraftEngine;
 import com.thizthizzydizzy.aeronautics.craft.Message;
-import com.thizthizzydizzy.aeronautics.craft.engine.standard.engine.LiftCell;
-import com.thizthizzydizzy.aeronautics.craft.engine.standard.engine.Turbine;
 import com.thizthizzydizzy.aeronautics.craft.multiblock.Multiblock;
 import java.util.ArrayList;
 public abstract class SubEngine{
-    private static ArrayList<SubEngine> engines = new ArrayList<>();
+    public static ArrayList<SubEngine> engines = new ArrayList<>();
     public static void init(){
         engines.clear();
-        engines.add(new Turbine());
-        engines.add(new LiftCell());
     }
     private final String name;
     private String edsName;

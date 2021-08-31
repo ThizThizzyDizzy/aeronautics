@@ -11,21 +11,9 @@ import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 public abstract class Special{
-    private static ArrayList<Special> specials = new ArrayList<>();
+    public static ArrayList<Special> specials = new ArrayList<>();//TODO make this not static
     public static void init(){
         specials.clear();
-        specials.add(new FireChargeLifespan());
-        specials.add(new FireChargeDirector());
-        specials.add(new TNTDirector());
-        specials.add(new BlockResistance());
-        specials.add(new TNTTracer());
-        specials.add(new SpillProtection());
-        specials.add(new TNTImpactDetonation());
-        specials.add(new MobSpawnProtection());
-        specials.add(new PointDefenseCannon());
-        specials.add(new DamageReport());
-        specials.add(new Turbine());
-        specials.add(new VerticalTurbine());
     }
     public static void createSigns(){
         for(Special s : specials){
@@ -78,4 +66,5 @@ public abstract class Special{
         return types;
     }
     public abstract void getMultiblockTypes(CraftSpecial special, ArrayList<Multiblock> multiblockTypes);
+    public void onRegister(){}
 }

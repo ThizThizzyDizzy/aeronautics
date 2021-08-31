@@ -2,7 +2,7 @@ package com.thizthizzydizzy.aeronautics.craft.multiblock;
 import com.thizthizzydizzy.aeronautics.Direction;
 import com.thizthizzydizzy.aeronautics.craft.Craft;
 import com.thizthizzydizzy.aeronautics.craft.CraftSpecial;
-import com.thizthizzydizzy.aeronautics.craft.special.Turbine;
+import com.thizthizzydizzy.aeronautics.craft.special.LegacyTurbine;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -17,16 +17,16 @@ import org.bukkit.block.data.type.Stairs;
 public class HorizontalTurbineMultiblock extends Multiblock{
     private Direction facing;//the direction the turbine is facing (the opposite direction as thrust would be given)
     private final CraftSpecial special;
-    private final Turbine turbine;
+    private final LegacyTurbine turbine;
     private HashMap<Integer, Integer> blades = new HashMap<>();
     private int warmupProgress = 0;
     private int bladeDelay = 20;
     private int bladeTimer = 20;
     private Random rand = new Random();
-    public HorizontalTurbineMultiblock(CraftSpecial special, Turbine turbine){
+    public HorizontalTurbineMultiblock(CraftSpecial special, LegacyTurbine turbine){
         this(special, turbine, null, null, null);
     }
-    private HorizontalTurbineMultiblock(CraftSpecial special, Turbine turbine, Craft craft, Block origin, Direction facing){
+    private HorizontalTurbineMultiblock(CraftSpecial special, LegacyTurbine turbine, Craft craft, Block origin, Direction facing){
         super("aeronautics:turbine", craft, origin);
         this.facing = facing;
         this.special = special;

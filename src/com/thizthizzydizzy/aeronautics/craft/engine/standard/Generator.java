@@ -2,18 +2,12 @@ package com.thizthizzydizzy.aeronautics.craft.engine.standard;
 import com.thizthizzydizzy.aeronautics.JSON;
 import com.thizthizzydizzy.aeronautics.craft.CraftEngine;
 import com.thizthizzydizzy.aeronautics.craft.Message;
-import com.thizthizzydizzy.aeronautics.craft.engine.standard.generator.SingleBlockGenerator;
-import com.thizthizzydizzy.aeronautics.craft.engine.standard.generator.FurnaceGenerator;
-import com.thizthizzydizzy.aeronautics.craft.engine.standard.generator.TestGenerator;
 import com.thizthizzydizzy.aeronautics.craft.multiblock.Multiblock;
 import java.util.ArrayList;
 public abstract class Generator{
-    private static ArrayList<Generator> generators = new ArrayList<>();
+    public static ArrayList<Generator> generators = new ArrayList<>();
     public static void init(){
         generators.clear();
-        generators.add(new FurnaceGenerator());
-        generators.add(new SingleBlockGenerator());
-        generators.add(new TestGenerator());
     }
     private final String name;
     private String edsName;

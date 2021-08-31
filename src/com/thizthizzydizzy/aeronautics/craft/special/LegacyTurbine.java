@@ -16,7 +16,7 @@ import org.bukkit.Tag;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
-public class Turbine extends Special{
+public class LegacyTurbine extends Special{
     public final HashSet<Material> rotorMaterials = new HashSet<>();
     public final HashSet<Material> outletMaterials = new HashSet<>();
     public final HashMap<HashSet<Material>, HashSet<Material>> bladeMaterials = new HashMap<>();
@@ -27,7 +27,7 @@ public class Turbine extends Special{
     public int warmupTime = 0;
     public int maxRotorLength;
     public int particlePower = 10;
-    public Turbine(){
+    public LegacyTurbine(){
         super("aeronautics:turbine");
     }
     @Override
@@ -111,7 +111,7 @@ public class Turbine extends Special{
     public void createSigns(ArrayList<CraftSign> signs){}
     @Override
     public Special newInstance(){
-        return new Turbine();
+        return new LegacyTurbine();
     }
     @Override
     public void init(CraftSpecial special){}

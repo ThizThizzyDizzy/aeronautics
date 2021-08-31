@@ -2,6 +2,7 @@ package com.thizthizzydizzy.aeronautics.craft.engine.standard;
 import com.thizthizzydizzy.aeronautics.Direction;
 import com.thizthizzydizzy.aeronautics.JSON.JSONArray;
 import com.thizthizzydizzy.aeronautics.JSON.JSONObject;
+import com.thizthizzydizzy.aeronautics.StandardEngineInitializationEvent;
 import com.thizthizzydizzy.aeronautics.craft.BlockCache;
 import com.thizthizzydizzy.aeronautics.craft.CraftEngine;
 import com.thizthizzydizzy.aeronautics.craft.CraftSign;
@@ -11,6 +12,7 @@ import com.thizthizzydizzy.aeronautics.craft.multiblock.Multiblock;
 import com.thizthizzydizzy.vanillify.Vanillify;
 import java.util.ArrayList;
 import java.util.HashMap;
+import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -339,5 +341,12 @@ public class StandardEngine extends Engine{
     public int getMass(Material m){
         if(blockMass.containsKey(m))return blockMass.get(m);
         return m.isBlock()?defaultBlockMass:defaultItemMass;
+    }
+    @Override
+    public void onRegister(){
+        EnergyDistributionSystem.init();
+        Generator.init();
+        SubEngine.init();
+        Bukkit.getServer().getPluginManager().callEvent(new StandardEngineInitializationEvent(this));
     }
 }
