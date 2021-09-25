@@ -121,7 +121,6 @@ public class StandardEngine extends Engine{
         for(var eds : energyDistributionSystems){
             eds.init(engine, this);
         }
-        //TODO pass through
         //todo initialization
     }
     @Override
@@ -146,7 +145,6 @@ public class StandardEngine extends Engine{
                             engine.getCraft().getAeronautics().debug(engine.getCraft().getCrew(), "COM: "+cache.covX+" "+cache.covY+" "+cache.covZ+" (~"+localCovX+" ~"+localCovY+" ~"+localCovZ+")");
                         }
                     }.runTask(engine.getCraft().getAeronautics());
-                    //TODO rather than shrinking towards the center of the ship, try moving the net (for example) from the front of the ship to the back, while shrinking it from double size to 0
                     AerodynamicNet net = new AerodynamicNet(originX, originY, originZ, (int)(netResolutionMult*Math.min(cache.maxX-cache.minX+1, Math.min(cache.maxY-cache.minY+1, cache.maxZ-cache.minZ+1))), (cache.maxX-cache.minX+1)/2d, (cache.maxY-cache.minY+1)/2d, (cache.maxZ-cache.minZ+1)/2d);
                     for(AerodynamicNetSide side : net.sides){
                         for(AerodynamicNetPoint[] points : side.net){

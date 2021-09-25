@@ -30,7 +30,7 @@ public class StandardCollisionHandler extends CollisionHandler{
         StandardEngine standardEngine = (StandardEngine)craftEngine.getEngine();
         int mass1 = standardEngine.getMass(movement.from.getBlock().getType());
         int mass2 = standardEngine.getMass(movement.to.getBlock().getType());
-        //TODO less damage at higher velocities; also apply forces to colliding ships! (reduce speed by a factor of (mass of all destroyed blocks)/(total ship mass))
+        //TODO less damage at lower velocities; also apply forces to colliding ships! (reduce speed by a factor of (mass of all destroyed blocks)/(total ship mass))
         double d1 = mass2/(double)mass1;//weight for thing 1
         double d2 = mass1/(double)mass2;//weight for thing 2
         double total = d1+d2;

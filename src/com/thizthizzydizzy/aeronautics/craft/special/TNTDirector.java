@@ -84,8 +84,10 @@ public class TNTDirector extends Special{
             }
             @Override
             public void update(Craft craft, Sign sign){
-                sign.setLine(0, displayName);
-                sign.update();//TODO only if it changes! (so bascially never?)
+                if(!sign.getLine(0).equals(displayName)){
+                    sign.setLine(0, displayName);
+                    sign.update();
+                }
             }
             @Override
             public boolean canLeftClick(Craft craft, Sign sign){

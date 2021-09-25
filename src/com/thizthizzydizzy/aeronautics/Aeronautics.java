@@ -26,7 +26,6 @@ import com.thizthizzydizzy.aeronautics.craft.special.FireChargeLifespan;
 import com.thizthizzydizzy.aeronautics.craft.special.MobSpawnProtection;
 import com.thizthizzydizzy.aeronautics.craft.special.PointDefenseCannon;
 import com.thizthizzydizzy.aeronautics.craft.special.Special;
-import static com.thizthizzydizzy.aeronautics.craft.special.Special.specials;
 import com.thizthizzydizzy.aeronautics.craft.special.SpillProtection;
 import com.thizthizzydizzy.aeronautics.craft.special.TNTDirector;
 import com.thizthizzydizzy.aeronautics.craft.special.TNTImpactDetonation;
@@ -43,7 +42,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -60,7 +58,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 public class Aeronautics extends JavaPlugin implements Listener{
     public final ArrayList<CraftType> craftTypes = new ArrayList<>();
-    private boolean debug = true;//TODO /aeronautics debug
+    public boolean debug = false;
     public final ArrayList<CraftDetector> detectors = new ArrayList<>();
     public final ArrayList<CollisionHandler> collisionHandlers = new ArrayList<>();
     public final ArrayList<SinkHandler> sinkHandlers = new ArrayList<>();
@@ -336,7 +334,7 @@ public class Aeronautics extends JavaPlugin implements Listener{
                 } //</editor-fold>
             }
         }.runTaskTimer(this, 1, 1);
-//        getCommand("aeronautics").setExecutor(new CommandAeronautics(this));
+        getCommand("aeronautics").setExecutor(new CommandAeronautics(this));
         logger.log(Level.INFO, "{0} has been enabled! (Version {1}) by ThizThizzyDizzy", new Object[]{pdfFile.getName(), pdfFile.getVersion()});
     }
     @Override

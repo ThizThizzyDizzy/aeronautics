@@ -86,7 +86,14 @@ public class StandardEngineTurbine extends Multiblock implements PowerUser{
                             };
                             for(int m = 1; m<=dist; m++){
                                 Block blo = bl.getRelative(secondaryCW.x*m, secondaryCW.y*m, secondaryCW.z*m);
-                                if(!blo.getType().isAir())break BLADE;//TODO mediums check
+                                boolean valid = false;
+                                for(var medium : craft.type.mediums){
+                                    if(medium.blocks.contains(blo.getType())){
+                                        valid = true;
+                                        break;
+                                    }
+                                }
+                                if(!valid)break BLADE;//block is not valid for medium
                             }
                             if(turbine.bladeMaterials.contains(bl.getType())&&craft.contains(bl))length = d;//could use ++ but I didn't
                             else break;

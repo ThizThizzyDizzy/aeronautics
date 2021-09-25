@@ -1661,7 +1661,7 @@ public class Craft{
      * @deprecated currently no alternative
      */
     @Deprecated
-    public static enum Mode{//TODO modifiable?
+    public static enum Mode{
         IDLE,
         CONSTRUCTION,
         COMBAT;

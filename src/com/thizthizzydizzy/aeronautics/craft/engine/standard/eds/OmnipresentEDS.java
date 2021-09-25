@@ -37,7 +37,7 @@ public class OmnipresentEDS extends BalancedEDS{
     public void getMultiblockTypes(CraftEngine engine, StandardEngine standardEngine, ArrayList<Multiblock> multiblockTypes){}
     @Override
     public ArrayList<Multiblock> getConnectedMultiblocks(CraftEngine engine){
-        ArrayList<Multiblock> multiblocks = engine.getCraft().getMultiblocks();//TODO check to make sure that's even using this EDS!
+        ArrayList<Multiblock> multiblocks = engine.getCraft().getMultiblocks();
         for(Iterator<Multiblock> it = multiblocks.iterator(); it.hasNext();){
             Multiblock next = it.next();
             if(next instanceof PowerUser){
