@@ -64,9 +64,7 @@ public class DuctedEDS extends EnergyDistributionSystem{
         rescanNeeded = true;//maybe only rescan if connector blocks were destroyed or if damage is negative? (i.e. block added)
     }
     @Override
-    public void getMessages(CraftEngine engine, StandardEngine standardEngine, ArrayList<Message> messages){
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
+    public void getMessages(CraftEngine engine, StandardEngine standardEngine, ArrayList<Message> messages){}
     @Override
     public void getMultiblockTypes(CraftEngine engine, StandardEngine standardEngine, ArrayList<Multiblock> multiblockTypes){}
     private void rescan(CraftEngine engine, StandardEngine standardEngine){
@@ -131,7 +129,8 @@ public class DuctedEDS extends EnergyDistributionSystem{
                 for(int x = -1; x<=1; x++){
                     for(int y = -1; y<=1; y++){
                         for(int z = -1; z<=1; z++){
-                            if(x==0&&y==0&&z==0)continue;//same block
+                            if(Math.abs(x)+Math.abs(y)+Math.abs(z)!=1)continue;//not equal to 1 taxicab offset
+//                            if(x==0&&y==0&&z==0)continue;//same block
                             Block newBlock = block.getRelative(x,y,z);
                             if(!connectors.contains(block.getType())&&!axles.contains(block.getType())&&!belts.contains(block.getType())&&!missingConnectors.contains(block))continue;//not part of the power train, nor a connector
                             if(!engine.getCraft().contains(block))continue;//not even part of the craft

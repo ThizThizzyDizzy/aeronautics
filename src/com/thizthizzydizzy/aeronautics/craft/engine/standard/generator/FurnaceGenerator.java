@@ -35,9 +35,7 @@ public class FurnaceGenerator extends Generator{
     @Override
     public void updateHull(CraftEngine engine, StandardEngine standardEngine, int damage, boolean damaged){}
     @Override
-    public void getMessages(CraftEngine engine, StandardEngine standardEngine, ArrayList<Message> messages){
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
+    public void getMessages(CraftEngine engine, StandardEngine standardEngine, ArrayList<Message> messages){}
     @Override
     public void getMultiblockTypes(CraftEngine engine, StandardEngine standardEngine, ArrayList<Multiblock> multiblockTypes){
         multiblockTypes.add(new StandardEngineFurnaceGenerator(engine, standardEngine, this));
