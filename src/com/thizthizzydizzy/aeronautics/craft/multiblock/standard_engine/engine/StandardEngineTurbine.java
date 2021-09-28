@@ -7,6 +7,7 @@ import com.thizthizzydizzy.aeronautics.craft.engine.standard.engine.Turbine;
 import com.thizthizzydizzy.aeronautics.craft.multiblock.Multiblock;
 import com.thizthizzydizzy.aeronautics.craft.multiblock.standard_engine.PowerUser;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Orientable;
@@ -16,7 +17,7 @@ public class StandardEngineTurbine extends Multiblock implements PowerUser{
     private final Turbine turbine;
     private final Direction facing;
     private final int length;
-    private final ArrayList<Blade> blades;
+    private final ArrayList<Blade> blades = new ArrayList<>();
     public StandardEngineTurbine(CraftEngine engine, StandardEngine standardEngine, Turbine turbine){
         this(engine, standardEngine, turbine, null, null, null, 0, null);
     }
@@ -27,7 +28,7 @@ public class StandardEngineTurbine extends Multiblock implements PowerUser{
         this.turbine = turbine;
         this.facing = facing;
         this.length = length;
-        this.blades = blades;
+        if(blades!=null)this.blades.addAll(blades);
     }
     @Override
     public Multiblock detect(Craft craft, Block origin){
@@ -40,10 +41,15 @@ public class StandardEngineTurbine extends Multiblock implements PowerUser{
             }
         }
         if(dir==null)return null;//no rotors found
+        ArrayList<Blade> blades = new ArrayList<>();
+        craft.aeronautics.debug(craft.getCrew(), "Scanning potential turbine: "+origin.getX()+" "+origin.getY()+" "+origin.getZ()+" "+dir.toString());
         int len = 0;
         ROTOR:for(int i = 1; i<=turbine.maxLength*2; i++){//doubled so you can't double up turbines
             Block b = origin.getRelative(dir.x*i, dir.y*i, dir.z*i);
-            if(turbine.outlets.contains(b.getType()))return null;//another outlet found
+            if(turbine.outlets.contains(b.getType())){
+                craft.aeronautics.debug(craft.getCrew(), "Another outlet found: "+b.getX()+" "+b.getY()+" "+b.getZ()+" "+b.getType().toString());
+                return null;
+            }//another outlet found
             if(turbine.rotors.contains(b.getType())&&craft.contains(b)&&b.getBlockData() instanceof Orientable o&&dir.matches(o.getAxis())){
                 if(i>turbine.maxLength)continue;//don't worry about blade searching; just checking for extra outlets
                 Direction up, right;
@@ -55,31 +61,34 @@ public class StandardEngineTurbine extends Multiblock implements PowerUser{
                     right = dir.get2DX().getOpposite();
                 }
                 int[][] bladeLengths = new int[3][4];//by rotation, then each blade
-                for(int j = 0; j<3; j++){
-                    for(int k = 0; k<4; k++){
-                        var main = switch(k){
+                for(int rotIdx = 0; rotIdx<3; rotIdx++){
+                    for(int bladeIdx = 0; bladeIdx<4; bladeIdx++){
+                        var main = switch(bladeIdx){
                             case 0 -> up;
                             case 1 -> right;
                             case 2 -> up.getOpposite();
                             case 3 -> right.getOpposite();
                             default -> null;
                         };
-                        var secondaryCW = switch(k){
+                        var secondaryCW = switch(bladeIdx){
                             case 0 -> right.getOpposite();
                             case 1 -> up;
                             case 2 -> right;
                             case 3 -> up.getOpposite();
                             default -> null;
                         };
-                        var secondary = switch(j){
+                        var secondary = switch(rotIdx){
                             case 0 -> secondaryCW.getOpposite();
                             case 1 -> Direction.NONE;
                             default -> secondaryCW;
                         };
+                        if(i==1){
+                            craft.aeronautics.debug(craft.getCrew(), "DD "+rotIdx+" "+bladeIdx+" U "+up.name()+" R "+right.name()+" M "+main.name()+" S "+secondary.name());
+                        }
                         int length = 0;
                         BLADE:for(int d = 1; d<=turbine.maxBladeLength; d++){
-                            Block bl = b.getRelative(main.x*d+(secondary.x-1)/2*d, main.y*d+(secondary.y-1)/2*d, main.z*d+(secondary.z-1)/2*d);
-                            int dist = switch(j){//checking for occlusion (excluding future blade position)
+                            Block bl = b.getRelative(main.x*d+(secondary.x*d+secondary.x)/2, main.y*d+(secondary.y*d+secondary.y)/2, main.z*d+(secondary.z*d+secondary.z)/2);
+                            int dist = switch(rotIdx){//checking for occlusion (excluding future blade position)
                                 case 0, 1 -> ((d-1)/2);
                                 case 2 -> d<(length+3)/2?2*d-(d-1)/2-3:(length-d+(length-d+1)/2);//only checking clockwise since this is regardless of blade spin direction; just checking for obstructions
                                 default -> 0;
@@ -99,9 +108,10 @@ public class StandardEngineTurbine extends Multiblock implements PowerUser{
                             else break;
                         }
                         if(length<turbine.minBladeLength)length = 0;
-                        bladeLengths[j][k] = length;
+                        bladeLengths[rotIdx][bladeIdx] = length;
                     }
                 }
+                craft.aeronautics.debug(craft.getCrew(), "Blade lengths at "+i+": "+Arrays.deepToString(bladeLengths));
                 int idx = -1;
                 boolean[] full = new boolean[3];
                 for(int j = 0; j<3; j++){
@@ -115,16 +125,26 @@ public class StandardEngineTurbine extends Multiblock implements PowerUser{
                     if(isPartial)continue ROTOR;//partial blade here; no blade is possible
                     if(yesNoMaybeSo){
                         if(idx==-1)idx = j;
-                        else continue ROTOR;//two valid rotor rotations; something's not right
+                        else{
+                            //two valid rotor rotations; could be overlapping blades; use the biggest one
+                            int lj = 0;
+                            int lidx = 0;
+                            for(int l : bladeLengths[j])if(l>lj)lj = l;
+                            for(int l : bladeLengths[idx])if(l>lidx)lidx = l;
+                            if(lj>lidx)idx = j;
+                        }
                     }
                 }
                 if(idx==-1)continue;//no valid rotor rotations, no blade here
-                blades.add(new Blade(i, idx, bladeLengths[idx]));
+                Blade blade = new Blade(i, idx, bladeLengths[idx]);
+                blades.add(blade);
+                craft.aeronautics.debug(craft.getCrew(), "New blade found: "+blade.location+" "+blade.rotation+" "+Arrays.toString(blade.length));
                 len = i;
             }else break;
         }
+        craft.aeronautics.debug(craft.getCrew(), "Length: "+len);
         if(len==0)return null;//no blades
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return new StandardEngineTurbine(engine, standardEngine, turbine, craft, origin, dir, len, blades);
     }
     @Override
     public void init(){
@@ -154,7 +174,7 @@ public class StandardEngineTurbine extends Multiblock implements PowerUser{
     public String getEDSName(){
         return turbine.getEDSName();
     }
-    private static class Blade{
+    public static class Blade{
         private final int location;
         private final int rotation;
         private final int[] length;
