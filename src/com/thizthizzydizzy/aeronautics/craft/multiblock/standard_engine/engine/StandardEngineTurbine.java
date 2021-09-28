@@ -15,7 +15,7 @@ public class StandardEngineTurbine extends Multiblock implements PowerUser{
     private final CraftEngine engine;
     private final StandardEngine standardEngine;
     private final Turbine turbine;
-    private final Direction facing;
+    private Direction facing;
     private final int length;
     private final ArrayList<Blade> blades = new ArrayList<>();
     public StandardEngineTurbine(CraftEngine engine, StandardEngine standardEngine, Turbine turbine){
@@ -159,16 +159,21 @@ public class StandardEngineTurbine extends Multiblock implements PowerUser{
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
     @Override
-    public void onDestroy(){
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
+    public void onDestroy(){}
     @Override
     public void onRotated(int rotation){
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        while(rotation>0){
+            facing = facing.getRight();
+        }
+        while(rotation<0){
+            facing = facing.getLeft();
+        }
     }
     @Override
     public void getPowerConnectors(CraftEngine engine, StandardEngine standardEngine, List<Block> connectors){
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        for(int i = 1; i<=length; i++){
+            connectors.add(origin.getRelative(facing.toBlockFace(), i));
+        }
     }
     @Override
     public String getEDSName(){
