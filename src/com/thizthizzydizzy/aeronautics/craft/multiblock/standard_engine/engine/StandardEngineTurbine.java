@@ -219,15 +219,16 @@ public class StandardEngineTurbine extends Multiblock implements PowerConsumer, 
         return turbine.getEDSName();
     }
     @Override
-    public double getThrottleMin(){
-        return -1;
+    public double getThrottleMin(Direction dir){
+        return dir==facing?-1:0;
     }
     @Override
-    public double getThrottleMax(){
-        return 1;
+    public double getThrottleMax(Direction dir){
+        return dir==facing?1:0;
     }
     @Override
-    public double getMaxThrust(){
+    public double getMaxThrust(Direction dir){
+        if(dir!=facing)return 0;
         double bladeVolume = 0;
         for(Blade b : blades){
             for(int l : b.length){
@@ -238,8 +239,8 @@ public class StandardEngineTurbine extends Multiblock implements PowerConsumer, 
         return Math.max(0, bladeVolume);
     }
     @Override
-    public void setThrottle(double throttle){
-        targetThrottle = throttle;
+    public void setThrottle(Direction dir, double throttle){
+        if(dir==facing)targetThrottle = Math.max(-1, Math.min(1, throttle));
     }
     private double getWarmupTime(){
         double size = 0;

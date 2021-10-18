@@ -5,14 +5,22 @@ import com.thizthizzydizzy.aeronautics.craft.Message;
 import com.thizthizzydizzy.aeronautics.craft.engine.standard.StandardEngine;
 import com.thizthizzydizzy.aeronautics.craft.engine.standard.SubEngine;
 import com.thizthizzydizzy.aeronautics.craft.multiblock.Multiblock;
+import com.thizthizzydizzy.aeronautics.craft.multiblock.standard_engine.engine.StandardEngineLiftCell;
 import com.thizthizzydizzy.vanillify.Vanillify;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import org.bukkit.Material;
 public class LiftCell extends SubEngine{
-    private int minSize, maxSize;
-    private HashMap<Material, Integer> interior = new HashMap<>();
-    private HashMap<Material, Integer> exterior = new HashMap<>();
+    public int minSize, maxSize;
+    public HashSet<Material> interior = new HashSet<>();
+    public HashSet<Material> exterior = new HashSet<>();
+    public HashSet<Material> cores = new HashSet<>();
+    public double noPowerCooldownMult;
+    public int liftPerBlock;
+    public int warmupTimeBase;
+    public double powerUsageMin;
+    public double powerUsageMax;
     public LiftCell(){
         super("aeronautics:lift_cell");
     }
@@ -20,22 +28,20 @@ public class LiftCell extends SubEngine{
     protected void load(JSON.JSONObject json){
         minSize = json.getInt("min_size");
         maxSize = json.getInt("max_size");
-        for(Object obj : json.getJSONArray("interior")){
-            JSON.JSONObject jobj = (JSON.JSONObject)obj;
-            for(Object o : jobj.getJSONArray("materials")){
-                for(Material m : Vanillify.getBlocks((String)o)){
-                    interior.put(m, 100);
-                }
-            }
+        for(Object o : json.getJSONArray("interior")){
+            interior.addAll(Vanillify.getBlocks((String)o));
         }
-        for(Object obj : json.getJSONArray("exterior")){
-            JSON.JSONObject jobj = (JSON.JSONObject)obj;
-            for(Object o : jobj.getJSONArray("materials")){
-                for(Material m : Vanillify.getBlocks((String)o)){
-                    exterior.put(m, 100);
-                }
-            }
+        for(Object o : json.getJSONArray("exterior")){
+            exterior.addAll(Vanillify.getBlocks((String)o));
         }
+        for(Object o : json.getJSONArray("cores")){
+            cores.addAll(Vanillify.getBlocks((String)o));
+        }
+        noPowerCooldownMult = json.getDouble("no_power_cooldown_mult");
+        liftPerBlock = json.getInt("lift_per_block");
+        warmupTimeBase = json.getInt("warmup_time_base");
+        powerUsageMin = json.getDouble("power_usage_min");
+        powerUsageMax = json.getDouble("power_usage_max");
     }
     @Override
     public SubEngine newInstance(){
@@ -49,6 +55,6 @@ public class LiftCell extends SubEngine{
     public void getMessages(CraftEngine engine, StandardEngine standardEngine, ArrayList<Message> messages){}
     @Override
     public void getMultiblockTypes(CraftEngine engine, StandardEngine standardEngine, ArrayList<Multiblock> multiblockTypes){
-//        throw new UnsupportedOperationException("Not supported yet.");//TODO lift cell multiblocks
+        multiblockTypes.add(new StandardEngineLiftCell(engine, standardEngine, this));
     }
 }

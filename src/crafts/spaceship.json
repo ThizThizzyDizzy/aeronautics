@@ -325,21 +325,19 @@
                     "min_size": 1,
                     "max_size": 8,
                     "interior":[
-                        {
-                            "materials": [
-                                "minecraft:snow_block"
-                            ],
-                            "lift": 100
-                        }
+                        "minecraft:white_concrete_powder"
                     ],
                     "exterior":[
-                        {
-                            "materials": [
-                                "minecraft:snow_block"
-                            ],
-                            "lift": 100
-                        }
-                    ]
+                        "minecraft:snow_block"
+                    ],
+                    "cores":[
+                        "minecraft:sponge"
+                    ],
+                    "no_power_cooldown_mult": 0.1,
+                    "lift_per_block": 100,
+                    "warmup_time_base": 100,
+                    "power_usage_min": 10,
+                    "power_usage_max": 100
                 }
             ],
             "aerodynamic_settings": {
