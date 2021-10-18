@@ -141,7 +141,7 @@
                     "particle_speed": 1,
                     "particle_power": 8,
                     "warmup_time_base": 50,
-                    "warmup_time_power": 0.75,
+                    "warmup_time_power": 2,
                     "power_usage_base": 50,
                     "power_usage_power": 0.75,
                     "energy_distribution_system": "rotary",

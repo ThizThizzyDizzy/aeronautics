@@ -5,19 +5,28 @@ import com.thizthizzydizzy.aeronautics.craft.CraftEngine;
 import com.thizthizzydizzy.aeronautics.craft.engine.standard.StandardEngine;
 import com.thizthizzydizzy.aeronautics.craft.engine.standard.engine.Turbine;
 import com.thizthizzydizzy.aeronautics.craft.multiblock.Multiblock;
+import com.thizthizzydizzy.aeronautics.craft.multiblock.standard_engine.PowerConsumer;
 import com.thizthizzydizzy.aeronautics.craft.multiblock.standard_engine.PowerUser;
+import com.thizthizzydizzy.aeronautics.craft.multiblock.standard_engine.StandardEngineEngine;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
+import org.bukkit.Particle;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Orientable;
-public class StandardEngineTurbine extends Multiblock implements PowerUser{
+import org.bukkit.util.Vector;
+public class StandardEngineTurbine extends Multiblock implements PowerConsumer, StandardEngineEngine{
     private final CraftEngine engine;
     private final StandardEngine standardEngine;
     private final Turbine turbine;
     private Direction facing;
     private final int length;
     private final ArrayList<Blade> blades = new ArrayList<>();
+    private double targetThrottle;
+    private double currentThrottle;
+    private Random rand = new Random();
+    private int storedPower = 0;
     public StandardEngineTurbine(CraftEngine engine, StandardEngine standardEngine, Turbine turbine){
         this(engine, standardEngine, turbine, null, null, null, 0, null);
     }
@@ -147,16 +156,46 @@ public class StandardEngineTurbine extends Multiblock implements PowerUser{
         return new StandardEngineTurbine(engine, standardEngine, turbine, craft, origin, dir, len, blades);
     }
     @Override
-    public void init(){
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
+    public void init(){}
     @Override
     public void tick(){
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        double pSpeed = turbine.particleSpeed;
+        double particleDensity = turbine.particleDensity;
+        double throttleInterval = 1d/getWarmupTime();
+        double lessThrottle = Math.signum(currentThrottle)*Math.max(0, Math.abs(currentThrottle)-throttleInterval);
+        if(currentThrottle<targetThrottle){
+            currentThrottle+=throttleInterval;
+            if(currentThrottle>targetThrottle)currentThrottle = targetThrottle;
+        }
+        if(currentThrottle>targetThrottle){
+            currentThrottle-=throttleInterval;
+            if(currentThrottle<targetThrottle)currentThrottle = targetThrottle;
+        }
+        double satisfaction = (double)storedPower/getDemand();
+        currentThrottle = lessThrottle+(currentThrottle-lessThrottle)*satisfaction;
+        pSpeed*=Math.pow(currentThrottle, turbine.particlePower);
+        particleDensity*=Math.pow(currentThrottle, turbine.particlePower);
+        for(Blade blade : blades){
+            int numParticles = (int)particleDensity;
+            if(particleDensity<1){
+                if(rand.nextDouble()<particleDensity)numParticles = 1;
+            }
+            for(int i = 0; i<numParticles; i++){
+                double x = origin.getX()+facing.x*blade.location+.5;
+                double y = origin.getY()+facing.y*blade.location+.5;
+                double z = origin.getZ()+facing.z*blade.location+.5;
+                Vector offset = new Vector(rand.nextDouble(), rand.nextDouble(), rand.nextDouble()).normalize().multiply(blade.getLength());
+                x+=offset.getX();
+                y+=offset.getY();
+                z+=offset.getZ();
+                craft.getWorld().spawnParticle(Particle.CLOUD, x, y, z, 0, -facing.x*pSpeed, -facing.y*pSpeed, -facing.z*pSpeed);
+            }
+        }
+        storedPower = 0;
     }
     @Override
     public boolean rescan(){
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return turbine.outlets.contains(origin.getType());//TODO actual rescan, not just checking the outlet!
     }
     @Override
     public void onDestroy(){}
@@ -179,6 +218,44 @@ public class StandardEngineTurbine extends Multiblock implements PowerUser{
     public String getEDSName(){
         return turbine.getEDSName();
     }
+    @Override
+    public double getThrottleMin(){
+        return -1;
+    }
+    @Override
+    public double getThrottleMax(){
+        return 1;
+    }
+    @Override
+    public double getMaxThrust(){
+        double bladeVolume = 0;
+        for(Blade b : blades){
+            for(int l : b.length){
+                bladeVolume+=(Math.PI*l*l)/4;
+            }
+            bladeVolume--;
+        }
+        return Math.max(0, bladeVolume);
+    }
+    @Override
+    public void setThrottle(double throttle){
+        targetThrottle = throttle;
+    }
+    private double getWarmupTime(){
+        double size = 0;
+        for(Blade b : blades)size+=b.getLength();
+        return turbine.warmupTimeBase*Math.pow(size, turbine.warmupTimePower);
+    }
+    @Override
+    public int getDemand(){
+        double size = 0;
+        for(Blade b : blades)size+=b.getLength();
+        return (int)(turbine.powerUsageBase*Math.pow(Math.abs(currentThrottle), turbine.powerUsagePower));
+    }
+    @Override
+    public void consume(int power){
+        storedPower+=power;
+    }
     public static class Blade{
         private final int location;
         private final int rotation;
@@ -187,6 +264,11 @@ public class StandardEngineTurbine extends Multiblock implements PowerUser{
             this.location = location;
             this.rotation = rotation;
             this.length = length;
+        }
+        private double getLength(){
+            double len = 0;
+            for(int i : length)len+=i;
+            return len/length.length;
         }
     }
 }
