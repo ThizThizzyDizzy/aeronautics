@@ -26,6 +26,8 @@ public class SingleBlockGenerator extends Generator{
     @Override
     public void init(CraftEngine engine, StandardEngine standardEngine){}
     @Override
+    public void tick(CraftEngine engine, StandardEngine standardEngine){}
+    @Override
     public void updateHull(CraftEngine engine, StandardEngine standardEngine, int damage, boolean damaged){}
     @Override
     public void getMessages(CraftEngine engine, StandardEngine standardEngine, ArrayList<Message> messages){}

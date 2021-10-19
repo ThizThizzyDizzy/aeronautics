@@ -4,6 +4,7 @@ import com.thizthizzydizzy.aeronautics.JSON.JSONArray;
 import com.thizthizzydizzy.aeronautics.JSON.JSONObject;
 import com.thizthizzydizzy.aeronautics.StandardEngineInitializationEvent;
 import com.thizthizzydizzy.aeronautics.craft.BlockCache;
+import com.thizthizzydizzy.aeronautics.craft.Craft;
 import com.thizthizzydizzy.aeronautics.craft.CraftEngine;
 import com.thizthizzydizzy.aeronautics.craft.CraftSign;
 import com.thizthizzydizzy.aeronautics.craft.Message;
@@ -23,6 +24,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.util.Vector;
 public class StandardEngine extends Engine{
     private ArrayList<EnergyDistributionSystem> energyDistributionSystems = new ArrayList<>();
     private ArrayList<Generator> generators = new ArrayList<>();
@@ -49,9 +51,9 @@ public class StandardEngine extends Engine{
     private double netNormalScale;
     private String netColors;
     
-    private boolean needsAerodynamicUpdate = true;
-    private BukkitTask aerodynamicUpdate = null;
-    private AerodynamicNet aerodynamicNet = null;
+    private int minMoveInterval;
+    private int minMoveDistance;
+    
     public StandardEngine(){
         super("aeronautics:standard_engine");
     }
@@ -102,6 +104,8 @@ public class StandardEngine extends Engine{
             }
         }
         itemMassMultiplier = aerodynamicSettings.getDouble("item_mass_multiplier");
+        minMoveInterval = json.getInt("min_move_interval");
+        minMoveDistance = json.getInt("min_move_distance");
     }
     @Override
     protected void createSigns(ArrayList<CraftSign> signs){}
@@ -111,7 +115,11 @@ public class StandardEngine extends Engine{
     }
     @Override
     public void init(CraftEngine engine){
-        needsAerodynamicUpdate = true;
+        engine.set("moveDelay", 0);
+        engine.set("velocity", new Vector());
+        engine.set("pendingTravel", new Vector());
+        engine.setLong("mass", 0);
+        engine.setBoolean("needsAerodynamicUpdate", true);
         for(var gen : generators){
             gen.init(engine, this);
         }
@@ -125,17 +133,18 @@ public class StandardEngine extends Engine{
     }
     @Override
     public void tick(CraftEngine engine){
-        if(needsAerodynamicUpdate&&aerodynamicUpdate==null){
+        if(engine.getBoolean("needsAerodynamicUpdate")&&engine.get("aerodynamicUpdate")==null){
             engine.getCraft().getAeronautics().debug(engine.getCraft().getCrew(), "Generating block cache");
-            final BlockCache cache = engine.getCraft().generateBlockCache();
+            final StandardEngineBlockCache cache = engine.getCraft().generateBlockCache(new StandardEngineBlockCache(this));
             engine.getCraft().getAeronautics().debug(engine.getCraft().getCrew(), "Starting asynchronous aerodynamic update");
-            aerodynamicUpdate = new BukkitRunnable() {
+            engine.set("aerodynamicUpdate", new BukkitRunnable() {
                 @Override
                 public void run(){
                     double originX = ((cache.minX+cache.maxX)/2d)+.5;
                     double originY = ((cache.minY+cache.maxY)/2d)+.5;
                     double originZ = ((cache.minZ+cache.maxZ)/2d)+.5;
-                    cache.calcCOV();
+                    cache.calcCenters();
+                    engine.setLong("mass", cache.mass);
                     double localCovX = cache.covX+.5-originX;
                     double localCovY = cache.covY+.5-originY;
                     double localCovZ = cache.covZ+.5-originZ;
@@ -182,8 +191,8 @@ public class StandardEngine extends Engine{
                     }
                     net.calculateSharpness(netFlatnessPow);
                     net.calculateAerodynamics(netFlatnessPenalty, netSideWeight);
-                    StandardEngine.this.aerodynamicNet = net;
-                    aerodynamicUpdate = null;
+                    engine.set("aerodynamicNet", net);
+                    engine.set("aerodynamicUpdate", null);
                     new BukkitRunnable(){
                         @Override
                         public void run() {
@@ -203,10 +212,11 @@ public class StandardEngine extends Engine{
                         }
                     }.runTask(engine.getCraft().getAeronautics());
                 }
-            }.runTaskAsynchronously(engine.getCraft().getAeronautics());
-            needsAerodynamicUpdate = false;
+            }.runTaskAsynchronously(engine.getCraft().getAeronautics()));
+            engine.setBoolean("needsAerodynamicUpdate", false);
         }
-        if(netDebugEnable&&aerodynamicNet!=null){
+        AerodynamicNet aerodynamicNet = engine.get("aerodynamicNet");
+        if(netDebugEnable&&engine.get("aerodynamicNet")!=null){
             iii++;
             switch (iii) {
                 case 2 -> drawNet(engine.getCraft().getWorld(), aerodynamicNet, aerodynamicNet.north, Color.RED);
@@ -220,11 +230,33 @@ public class StandardEngine extends Engine{
                 }
             }
         }
-        for(var eds : energyDistributionSystems){//because they don't use multiblocks; what about generators/engines though?
+        for(var gen : generators)gen.tick(engine, this);
+        for(var eds : energyDistributionSystems){
             eds.tick(engine, this);
         }
-        //TODO pass through
-        //TODO all the movement and stuff
+        for(var eng : subEngines)eng.tick(engine, this);
+        Vector velocity = engine.get("velocity");
+        velocity.add(getGravityVector());
+        for(var eng : subEngines){
+            velocity.add(eng.getCurrentThrust(engine, this).multiply(1/engine.getLong("mass")));
+        }
+        Vector pendingTravel = engine.get("pendingTravel");
+        pendingTravel.add(velocity);
+        int delay = engine.get("moveDelay");
+        if(delay<=0){
+            int len = Math.min((int)pendingTravel.length(), Math.max((int)pendingTravel.getX(), Math.max((int)pendingTravel.getY(), (int)pendingTravel.getZ())));
+            if(len>minMoveDistance){
+                int dx = (int)pendingTravel.getX();
+                int dy = (int)pendingTravel.getY();
+                int dz = (int)pendingTravel.getZ();
+                engine.getCraft().move(dx, dy, dz, engine.getCraft().type.mediums);//don't assume all mediums?
+                pendingTravel.subtract(new Vector(dx,dy,dz));
+                engine.set("moveDelay", minMoveInterval);
+            }
+        }else engine.set("moveDelay", delay-1);
+        //TODO drag and buoyancy based on medium
+        //TODO rotation
+        //TODO holding steady vertically
     }
     int iii = 0;
     private void drawNet(World world, AerodynamicNet net, AerodynamicNetSide side, Color color){
@@ -280,23 +312,26 @@ public class StandardEngine extends Engine{
     }
     @Override
     public void event(CraftEngine engine, Event event){
-        needsAerodynamicUpdate = true;
+        engine.setBoolean("needsAerodynamicUpdate", true);
         //TODO pass through
     }
     @Override
     public void onUnload(CraftEngine engine){
+        for(SubEngine e : subEngines){
+            for(Direction d : Direction.LATERAL)e.setThrottle(engine, this, d, 0);
+        }
         //TODO stop?
     }
     @Override
     public void onMoved(CraftEngine engine){}
     @Override
     public boolean canRemoveBlock(CraftEngine engine, Player player, int damage, boolean damaged, Location l){
-        needsAerodynamicUpdate = true;
+        engine.setBoolean("needsAerodynamicUpdate", true);
         return true;
     }
     @Override
     public void updateHull(CraftEngine engine, int damage, boolean damaged){
-        needsAerodynamicUpdate = true;
+        engine.setBoolean("needsAerodynamicUpdate", true);
         for(var gen : generators){
             gen.updateHull(engine, this, damage, damaged);
         }
@@ -309,7 +344,7 @@ public class StandardEngine extends Engine{
     }
     @Override
     public boolean canAddBlock(CraftEngine engine, Player player, Block block, boolean force){
-        needsAerodynamicUpdate = true;
+        engine.setBoolean("needsAerodynamicUpdate", true);
         return true;
     }
     @Override
@@ -346,5 +381,8 @@ public class StandardEngine extends Engine{
         Generator.init();
         SubEngine.init();
         Bukkit.getServer().getPluginManager().callEvent(new StandardEngineInitializationEvent(this));
+    }
+    private Vector getGravityVector(){
+        return new Vector(0, -gravity, 0);
     }
 }

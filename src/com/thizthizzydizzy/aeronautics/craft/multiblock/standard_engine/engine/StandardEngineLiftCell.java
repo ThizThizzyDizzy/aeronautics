@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import org.bukkit.block.Block;
+import org.bukkit.util.Vector;
 public class StandardEngineLiftCell extends Multiblock implements PowerConsumer, StandardEngineEngine{
     private final CraftEngine engine;
     private final StandardEngine standardEngine;
@@ -222,5 +223,9 @@ public class StandardEngineLiftCell extends Multiblock implements PowerConsumer,
     @Override
     public void consume(int power){
         storedPower+=power;
+    }
+    @Override
+    public Vector getCurrentThrust(){
+        return new Vector(0, currentThrottle*getMaxThrust(Direction.UP), 0);
     }
 }

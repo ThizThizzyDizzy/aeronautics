@@ -13,8 +13,20 @@ public class CraftEngine{
     public void set(String key, Object value){
         data.put(key, value);
     }
-    public Object get(String key){
-        return data.get(key);
+    public void setBoolean(String key, boolean value){
+        set(key, value);
+    }
+    public void setLong(String key, long l){
+        set(key, l);
+    }
+    public <T extends Object> T get(String key){
+        return (T)data.get(key);
+    }
+    public boolean getBoolean(String key){
+        return get(key);
+    }
+    public long getLong(String key){
+        return get(key);
     }
     public void remove(String key){
         data.remove(key);

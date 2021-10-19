@@ -358,7 +358,7 @@
                         "colors": "aerodynamics_north"
                     }
                 },
-                "gravity": 0.1,
+                "gravity": 9.81,
                 "balancing": {
                     "drift_multiplier": 1
                 },
@@ -457,7 +457,9 @@
                     }
                 ],
                 "item_mass_multiplier": 0.015625
-            }
+            },
+            "min_move_interval": 10,
+            "min_move_distance": 2
         }
     ],
     "allowed_blocks": [
@@ -616,7 +618,10 @@
         "minecraft:polished_basalt",
         "minecraft:quartz_pillar",
         "minecraft:purpur_pillar",
-        "minecraft:chain"
+        "minecraft:chain",
+        "minecraft:white_concrete_powder",
+        "minecraft:sponge",
+        "minecraft:snow_block"
     ],
     "banned_blocks":[
         "minecraft:cobblestone",

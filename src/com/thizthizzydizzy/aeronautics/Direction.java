@@ -2,6 +2,7 @@ package com.thizthizzydizzy.aeronautics;
 import java.util.ArrayList;
 import org.bukkit.Axis;
 import org.bukkit.block.BlockFace;
+import org.bukkit.util.Vector;
 public enum Direction{
     NORTH(0,0,-1),
     SOUTH(0,0,1),
@@ -192,5 +193,8 @@ public enum Direction{
     }
     public boolean isVertical(){
         return y!=0;
+    }
+    public Vector toVector(){
+        return new Vector(x, y, z);
     }
 }

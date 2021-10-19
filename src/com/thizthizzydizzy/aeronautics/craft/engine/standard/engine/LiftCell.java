@@ -2,16 +2,16 @@ package com.thizthizzydizzy.aeronautics.craft.engine.standard.engine;
 import com.thizthizzydizzy.aeronautics.JSON;
 import com.thizthizzydizzy.aeronautics.craft.CraftEngine;
 import com.thizthizzydizzy.aeronautics.craft.Message;
+import com.thizthizzydizzy.aeronautics.craft.engine.standard.MultiblockSubEngine;
 import com.thizthizzydizzy.aeronautics.craft.engine.standard.StandardEngine;
 import com.thizthizzydizzy.aeronautics.craft.engine.standard.SubEngine;
 import com.thizthizzydizzy.aeronautics.craft.multiblock.Multiblock;
 import com.thizthizzydizzy.aeronautics.craft.multiblock.standard_engine.engine.StandardEngineLiftCell;
 import com.thizthizzydizzy.vanillify.Vanillify;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import org.bukkit.Material;
-public class LiftCell extends SubEngine{
+public class LiftCell extends MultiblockSubEngine{
     public int minSize, maxSize;
     public HashSet<Material> interior = new HashSet<>();
     public HashSet<Material> exterior = new HashSet<>();
@@ -49,6 +49,8 @@ public class LiftCell extends SubEngine{
     }
     @Override
     public void init(CraftEngine engine, StandardEngine standardEngine){}
+    @Override
+    public void tick(CraftEngine engine, StandardEngine standardEngine){}
     @Override
     public void updateHull(CraftEngine engine, StandardEngine standardEngine, int damage, boolean damaged){}
     @Override

@@ -303,7 +303,6 @@ public class LegacyStandardEngine extends Engine{
         }
         return c;
     }
-    
     @Override
     public void init(CraftEngine engine){
         engine.set("cruise", Direction.NONE);

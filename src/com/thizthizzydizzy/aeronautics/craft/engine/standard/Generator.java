@@ -32,6 +32,7 @@ public abstract class Generator{
         return name;
     }
     public abstract void init(CraftEngine engine, StandardEngine standardEngine);
+    public abstract void tick(CraftEngine engine, StandardEngine standardEngine);
     public abstract void updateHull(CraftEngine engine, StandardEngine standardEngine, int damage, boolean damaged);
     public abstract void getMessages(CraftEngine engine, StandardEngine standardEngine, ArrayList<Message> messages);
     public abstract void getMultiblockTypes(CraftEngine engine, StandardEngine standardEngine, ArrayList<Multiblock> multiblockTypes);

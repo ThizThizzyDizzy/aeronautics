@@ -271,4 +271,8 @@ public class StandardEngineTurbine extends Multiblock implements PowerConsumer, 
             return len/length.length;
         }
     }
+    @Override
+    public Vector getCurrentThrust(){
+        return facing.toVector().multiply(getMaxThrust(facing));
+    }
 }

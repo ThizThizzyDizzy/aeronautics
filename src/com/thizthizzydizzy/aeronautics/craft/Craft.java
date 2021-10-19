@@ -1435,7 +1435,9 @@ public class Craft{
         return aeronautics;
     }
     public BlockCache generateBlockCache(){
-        BlockCache cache = new BlockCache();
+        return generateBlockCache(new BlockCache());
+    }
+    public <T extends BlockCache> T generateBlockCache(T cache){
         for(Block b : blocks){
             cache.add(b);
         }

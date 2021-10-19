@@ -2,6 +2,7 @@ package com.thizthizzydizzy.aeronautics.craft.engine.standard.engine;
 import com.thizthizzydizzy.aeronautics.JSON;
 import com.thizthizzydizzy.aeronautics.craft.CraftEngine;
 import com.thizthizzydizzy.aeronautics.craft.Message;
+import com.thizthizzydizzy.aeronautics.craft.engine.standard.MultiblockSubEngine;
 import com.thizthizzydizzy.aeronautics.craft.engine.standard.StandardEngine;
 import com.thizthizzydizzy.aeronautics.craft.engine.standard.SubEngine;
 import com.thizthizzydizzy.aeronautics.craft.multiblock.Multiblock;
@@ -9,7 +10,7 @@ import com.thizthizzydizzy.aeronautics.craft.multiblock.standard_engine.engine.S
 import com.thizthizzydizzy.vanillify.Vanillify;
 import java.util.ArrayList;
 import org.bukkit.Material;
-public class Turbine extends SubEngine{
+public class Turbine extends MultiblockSubEngine{
     public int minLength, maxLength, minBladeLength, maxBladeLength, warmupTimeBase, powerUsageBase;
     public double particleDensity, particleSpeed, particlePower, warmupTimePower, powerUsagePower;
     public ArrayList<Material> rotors = new ArrayList<>();
@@ -47,6 +48,8 @@ public class Turbine extends SubEngine{
     }
     @Override
     public void init(CraftEngine engine, StandardEngine standardEngine){}
+    @Override
+    public void tick(CraftEngine engine, StandardEngine standardEngine){}
     @Override
     public void updateHull(CraftEngine engine, StandardEngine standardEngine, int damage, boolean damaged){
         //TODO recalculate thrust if multiblocks are changed?

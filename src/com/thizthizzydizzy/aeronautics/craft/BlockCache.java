@@ -39,7 +39,7 @@ public class BlockCache{
             blocks.put(b.x, blox);
         }
     }
-    public void calcCOV() {
+    public void calcCOV(){
         double x = 0;
         double y = 0;
         double z = 0;
@@ -70,7 +70,7 @@ public class BlockCache{
             this.material = material;
         }
         private boolean isSolid(double xOff, double yOff, double zOff){
-            return true;
+            return true;//TODO handle slabs, stairs, passable blocks, etc.
         }
     }
 }
