@@ -7,6 +7,7 @@ import com.thizthizzydizzy.aeronautics.craft.engine.standard.engine.LiftCell;
 import com.thizthizzydizzy.aeronautics.craft.multiblock.Multiblock;
 import com.thizthizzydizzy.aeronautics.craft.multiblock.standard_engine.PowerConsumer;
 import com.thizthizzydizzy.aeronautics.craft.multiblock.standard_engine.StandardEngineEngine;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import org.bukkit.block.Block;
@@ -28,7 +29,7 @@ public class StandardEngineLiftCell extends Multiblock implements PowerConsumer,
         this(engine, standardEngine, liftCell, null, null, 0, 0, 0, 0, 0, 0);
     }
     public StandardEngineLiftCell(CraftEngine engine, StandardEngine standardEngine, LiftCell liftCell, Craft craft, Block origin, int dxn, int dxp, int dyn, int dyp, int dzn, int dzp){
-        super("aeronautics:standard_engine.turbine", craft, origin);
+        super("aeronautics:standard_engine.lift_cell", craft, origin);
         this.engine = engine;
         this.standardEngine = standardEngine;
         this.liftCell = liftCell;
@@ -41,6 +42,95 @@ public class StandardEngineLiftCell extends Multiblock implements PowerConsumer,
     }
     @Override
     public Multiblock detect(Craft craft, Block origin){
+        if(!liftCell.cores.contains(origin.getType()))return null;//not a core
+        craft.aeronautics.debug(craft.getCrew(), "Scanning potential lift cell: "+origin.getX()+" "+origin.getY()+" "+origin.getZ());
+        int xn = 0, yn = 0, zn = 0, xp = 0, yp = 0, zp = 0;
+        DIR:for(Direction d : Direction.NONZERO){
+            while(Math.max(xp+xn-1, Math.max(yp+yn-1, zp+zn-1))<liftCell.maxSize){
+                ArrayList<Block> blocksToScan = new ArrayList<>();
+                if(d.x>0){
+                    for(int dy = -yn; dy<=yp; dy++){
+                        for(int dz = -zn; dz<=zp; dz++){
+                            blocksToScan.add(origin.getRelative(xp+1,dy,dz));
+                        }
+                    }
+                }
+                if(d.x<0){
+                    for(int dy = -yn; dy<=yp; dy++){
+                        for(int dz = -zn; dz<=zp; dz++){
+                            blocksToScan.add(origin.getRelative(-xn-1,dy,dz));
+                        }
+                    }
+                }
+                if(d.y>0){
+                    for(int dx = -xn; dx<=xp; dx++){
+                        for(int dz = -zn; dz<=zp; dz++){
+                            blocksToScan.add(origin.getRelative(dx,yp+1,dz));
+                        }
+                    }
+                }
+                if(d.y<0){
+                    for(int dx = -xn; dx<=xp; dx++){
+                        for(int dz = -zn; dz<=zp; dz++){
+                            blocksToScan.add(origin.getRelative(dx,-yn-1,dz));
+                        }
+                    }
+                }
+                if(d.z>0){
+                    for(int dx = -xn; dx<=xp; dx++){
+                        for(int dy = -yn; dy<=yp; dy++){
+                            blocksToScan.add(origin.getRelative(dx,dy,zp+1));
+                        }
+                    }
+                }
+                if(d.z<0){
+                    for(int dx = -xn; dx<=xp; dx++){
+                        for(int dy = -yn; dy<=yp; dy++){
+                            blocksToScan.add(origin.getRelative(dx,dy,-zn-1));
+                        }
+                    }
+                }
+                if(blocksToScan.isEmpty())throw new IllegalArgumentException("Something has gone terribly wrong!");
+                for(Block b : blocksToScan){
+                    if(!liftCell.interior.contains(b.getType())){
+                        continue DIR;
+                    }
+                }
+                if(d.x>0)xp++;
+                if(d.y>0)yp++;
+                if(d.z>0)zp++;
+                if(d.x<0)xn++;
+                if(d.y<0)yn++;
+                if(d.z<0)zn++;
+            }
+        }
+        craft.aeronautics.debug(craft.getCrew(), "Core size: "+(xn+xp+1)+" "+(yn+yp+1)+" "+(zn+zp+1));
+        ArrayList<Block> blocksToScan = new ArrayList<>();
+        for(int dy = -yn; dy<=yp; dy++){
+            for(int dz = -zn; dz<=zp; dz++){
+                blocksToScan.add(origin.getRelative(xp+1,dy,dz));
+                blocksToScan.add(origin.getRelative(-xn-1,dy,dz));
+            }
+        }
+        for(int dx = -xn; dx<=xp; dx++){
+            for(int dz = -zn; dz<=zp; dz++){
+                blocksToScan.add(origin.getRelative(dx,yp+1,dz));
+                blocksToScan.add(origin.getRelative(dx,-yn-1,dz));
+            }
+        }
+        for(int dx = -xn; dx<=xp; dx++){
+            for(int dy = -yn; dy<=yp; dy++){
+                blocksToScan.add(origin.getRelative(dx,dy,zp+1));
+                blocksToScan.add(origin.getRelative(dx,dy,-zn-1));
+            }
+        }
+        for(Block b : blocksToScan){
+            if(!liftCell.exterior.contains(b.getType())){
+                craft.aeronautics.debug(craft.getCrew(), "Invalid Casing at "+b.getX()+" "+b.getY()+" "+b.getZ());
+                return null;//invalid casing
+            }
+        }
+        return new StandardEngineLiftCell(engine, standardEngine, liftCell, craft, origin, xn, xp, yn, yp, zn, zp);
     }
     @Override
     public void init(){}

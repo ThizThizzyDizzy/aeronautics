@@ -6,7 +6,6 @@ import com.thizthizzydizzy.aeronautics.craft.engine.standard.StandardEngine;
 import com.thizthizzydizzy.aeronautics.craft.engine.standard.engine.Turbine;
 import com.thizthizzydizzy.aeronautics.craft.multiblock.Multiblock;
 import com.thizthizzydizzy.aeronautics.craft.multiblock.standard_engine.PowerConsumer;
-import com.thizthizzydizzy.aeronautics.craft.multiblock.standard_engine.PowerUser;
 import com.thizthizzydizzy.aeronautics.craft.multiblock.standard_engine.StandardEngineEngine;
 import java.util.ArrayList;
 import java.util.Arrays;
