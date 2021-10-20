@@ -3,10 +3,10 @@ import com.thizthizzydizzy.aeronautics.Direction;
 import com.thizthizzydizzy.aeronautics.JSON.JSONArray;
 import com.thizthizzydizzy.aeronautics.JSON.JSONObject;
 import com.thizthizzydizzy.aeronautics.StandardEngineInitializationEvent;
-import com.thizthizzydizzy.aeronautics.craft.BlockCache;
-import com.thizthizzydizzy.aeronautics.craft.Craft;
 import com.thizthizzydizzy.aeronautics.craft.CraftEngine;
 import com.thizthizzydizzy.aeronautics.craft.CraftSign;
+import com.thizthizzydizzy.aeronautics.craft.Medium;
+import com.thizthizzydizzy.aeronautics.craft.MediumCache;
 import com.thizthizzydizzy.aeronautics.craft.Message;
 import com.thizthizzydizzy.aeronautics.craft.engine.Engine;
 import com.thizthizzydizzy.aeronautics.craft.multiblock.Multiblock;
@@ -23,7 +23,6 @@ import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 public class StandardEngine extends Engine{
     private ArrayList<EnergyDistributionSystem> energyDistributionSystems = new ArrayList<>();
@@ -216,7 +215,7 @@ public class StandardEngine extends Engine{
             engine.setBoolean("needsAerodynamicUpdate", false);
         }
         AerodynamicNet aerodynamicNet = engine.get("aerodynamicNet");
-        if(netDebugEnable&&engine.get("aerodynamicNet")!=null){
+        if(netDebugEnable&&aerodynamicNet!=null){
             iii++;
             switch (iii) {
                 case 2 -> drawNet(engine.getCraft().getWorld(), aerodynamicNet, aerodynamicNet.north, Color.RED);
@@ -237,8 +236,24 @@ public class StandardEngine extends Engine{
         for(var eng : subEngines)eng.tick(engine, this);
         Vector velocity = engine.get("velocity");
         velocity.add(getGravityVector());
+        MediumCache mediums = engine.getCraft().getCurrentMediums();
+        double buoyantForce = mediums.shipVolume*mediums.buoyancy;
+        velocity.add(new Vector(0, buoyantForce, 0));
+        double dragMult = mediums.drag;
         for(var eng : subEngines){
             velocity.add(eng.getCurrentThrust(engine, this).multiply(1/engine.getLong("mass")));
+        }
+        if(aerodynamicNet!=null){
+            for(Direction d : Direction.NONZERO){
+                AerodynamicSettings settings = aerodynamicNet.aerodynamics.get(d);
+                if(settings!=null){//no drag if aerodynamics haven't calculated yet
+                    Vector filteredVector = new Vector(velocity.getX()*d.x, velocity.getY()*d.y, velocity.getZ()*d.z);
+                    if(Math.signum(filteredVector.getX())==Math.signum(velocity.getX())&&Math.signum(filteredVector.getY())==Math.signum(velocity.getY())&&Math.signum(filteredVector.getZ())==Math.signum(velocity.getZ())){
+                        //vector is pointing the right direction
+                        velocity.add(filteredVector.multiply(-1+Math.max(settings.aerodynamicness, 1-dragMult*(1-settings.aerodynamicness))/Math.max(1, dragMult)));
+                    }
+                }
+            }
         }
         Vector pendingTravel = engine.get("pendingTravel");
         pendingTravel.add(velocity);
@@ -249,7 +264,7 @@ public class StandardEngine extends Engine{
                 int dx = (int)pendingTravel.getX();
                 int dy = (int)pendingTravel.getY();
                 int dz = (int)pendingTravel.getZ();
-                engine.getCraft().move(dx, dy, dz, engine.getCraft().type.mediums);//don't assume all mediums?
+                engine.getCraft().move(dx, dy, dz, engine.getCraft().type.mediums);
                 pendingTravel.subtract(new Vector(dx,dy,dz));
                 engine.set("moveDelay", minMoveInterval);
             }

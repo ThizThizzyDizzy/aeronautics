@@ -84,6 +84,7 @@ public class Craft{
      */
     private ArrayList<Multiblock> multiblockTypes = new ArrayList<>();
     private ArrayList<Multiblock> multiblocks = new ArrayList<>();
+    private MediumCache cachedCurrentMediums;
     public Craft(Aeronautics aeronautics, World world, CraftType type, HashSet<Block> blocks){
         this.aeronautics = aeronautics;
         this.world = world;
@@ -772,6 +773,7 @@ public class Craft{
         return move(blocks, movements, mediums)!=null;
     }
     public Iterable<Entity> move(Collection<Block> blocks, Collection<BlockMovement> movements, List<Medium> mediums){//TODO mediums
+        cachedCurrentMediums = null;
         if(blocks.isEmpty())return null;
         boolean allowUnderwater = false;
         for(Medium medium : mediums)if(medium.blocks.contains(Material.WATER))allowUnderwater = true;
@@ -1290,7 +1292,7 @@ public class Craft{
         }
         //TODO damage report?
         if(blocks.size()<type.minSize){
-            if(damaged)startSinking();
+            if(damaged)startSinking();//TODO make this a special; move min size to the craft detector
             else{
                 notifyBlockChange(player, "Craft too small!");
                 return false;
@@ -1445,6 +1447,23 @@ public class Craft{
     }
     public ArrayList<Multiblock> getMultiblocks(){
         return new ArrayList<>(multiblocks);//so you can't modify the list
+    }
+    public MediumCache getCurrentMediums(){
+        if(cachedCurrentMediums!=null)return cachedCurrentMediums;
+        Set<Block> outsideBlocks = new HashSet<>();
+        Set<Block> outerHull = new HashSet<>();
+        Set<Block> innerShip = new HashSet<>();
+        scanHull(outsideBlocks, outerHull, innerShip);
+        MediumCache cache = new MediumCache();
+        for(Block b : outsideBlocks){
+            for(Medium m : type.mediums){
+                if(m.blocks.contains(b.getType())){
+                    cache.addBlock(m, b.getY());
+                }
+            }
+        }
+        cache.shipVolume = outerHull.size()+innerShip.size();
+        return cachedCurrentMediums = cache.calculate();
     }
     public static class BlockChange implements Comparable<BlockChange>{
         private final Material type;
