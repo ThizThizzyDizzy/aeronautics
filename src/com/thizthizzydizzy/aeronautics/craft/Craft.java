@@ -58,7 +58,6 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Hanging;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
-import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.util.BoundingBox;
 public class Craft{
     public final Aeronautics aeronautics;
@@ -773,7 +772,7 @@ public class Craft{
         return move(blocks, movements, mediums)!=null;
     }
     public Iterable<Entity> move(Collection<Block> blocks, Collection<BlockMovement> movements, List<Medium> mediums){//TODO mediums
-        cachedCurrentMediums = null;
+        clearMediumsCache();
         if(blocks.isEmpty())return null;
         boolean allowUnderwater = false;
         for(Medium medium : mediums)if(medium.blocks.contains(Material.WATER))allowUnderwater = true;
@@ -890,7 +889,14 @@ public class Craft{
 ////            criticalError(81037, "NET CHANGE IS NOT EQUAL TO 0!"); 
 ////            return null;
 //        }
+        ArrayList<Block> replacingBlocks = new ArrayList<>(newBlocks);
+        replacingBlocks.removeAll(this.blocks);
+        aeronautics.debug(pilots, "Prepared WAS blocks");
         moving = true;
+        replacingBlocks.forEach((t)->{
+            was.put(t, t.getState());
+        });
+        aeronautics.debug(pilots, "Stored WAS blocks");
         for(Block block : blocks){
             if(Aeronautics.blocksThatPop.contains(block.getType())){
                 block.setType(Material.AIR, false);
@@ -1247,7 +1253,7 @@ public class Craft{
                 was.remove(block);
                 A++;
             }else{
-                changes.add(new BlockChange(block, Material.AIR, null, null));
+                changes.add(new BlockChange(block, Material.AIR, null, null).causePhysicsUpdate());
                 B++;
             }
         }
@@ -1281,6 +1287,7 @@ public class Craft{
         }
     }
     public boolean updateHull(Player player, int damage, boolean damaged, Location l){
+        clearMediumsCache();
         rescanSigns();
         aeronautics.debug(pilots, "Updating hull; damage: "+damage+" "+damaged);
         for(Iterator<Block> it = blocks.iterator(); it.hasNext();){
@@ -1322,6 +1329,7 @@ public class Craft{
         if(moving){
             return false;
         }
+        clearMediumsCache();
         setMode(Mode.CONSTRUCTION);
         if(type.bannedBlocks.contains(block.getType())||!type.allowedBlocks.contains(block.getType())){
             notifyBlockChange(player, block.getType()+" is not allowed on this craft!");
@@ -1465,11 +1473,15 @@ public class Craft{
         cache.shipVolume = outerHull.size()+innerShip.size();
         return cachedCurrentMediums = cache.calculate();
     }
+    public void clearMediumsCache(){
+        cachedCurrentMediums = null;
+    }
     public static class BlockChange implements Comparable<BlockChange>{
         private final Material type;
         private final BlockData data;
         private final BlockState state;
         private final Block block;
+        private boolean causesPhysicsUpdate = false;
         public BlockChange(Block block, Material type, BlockData data, BlockState state, int rotation){
             this.block = block;
             this.type = type;
@@ -1490,10 +1502,10 @@ public class Craft{
             BlockState st = block.getState();
             if(st instanceof Container){
                 ((Container)st).getSnapshotInventory().clear();
-                st.update(false, false);
+                st.update(false, causesPhysicsUpdate);
             }
             if(block.getType()!=type){
-                block.setType(type, false);
+                block.setType(type, causesPhysicsUpdate);
             }
             if(Aeronautics.isInert(type))return;
             if(data!=null)block.setBlockData(data);
@@ -1615,7 +1627,7 @@ public class Craft{
                     newCommandBlock.setName(oldCommandBlock.getName());
                 }
                 try{
-                    newState.update(false, false);
+                    newState.update(false, causesPhysicsUpdate);
                 }catch(NullPointerException ex){
                     Bukkit.getServer().broadcastMessage("Failed to copy block state: "+block.getType().name());
                 }
@@ -1629,6 +1641,10 @@ public class Craft{
             if(a)return -1;
             if(b)return 1;
             return 0;
+        }
+        private BlockChange causePhysicsUpdate(){
+            causesPhysicsUpdate = true;
+            return this;
         }
     }
     public static class BlockMovement{

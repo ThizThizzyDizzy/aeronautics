@@ -1,4 +1,5 @@
 package com.thizthizzydizzy.aeronautics;
+import com.thizthizzydizzy.aeronautics.craft.Craft;
 import java.util.ArrayList;
 import java.util.List;
 import org.bukkit.command.Command;
@@ -26,6 +27,29 @@ public class CommandAeronautics implements TabExecutor{
             @Override
             protected String getUsage(){
                 return "/aeronautics help";
+            }
+        });
+        commands.add(new AeronauticsCommand("release"){
+            @Override
+            protected boolean run(CommandSender sender, Command command, String label, String[] args){
+                if(sender instanceof Player p){
+                    ArrayList<Craft> toRelease = new ArrayList<>();
+                    for(Craft craft : plugin.getCrafts()){
+                        if(craft.isPilot(p)){
+                            toRelease.add(craft);
+                        }
+                    }
+                    toRelease.forEach(plugin::releaseCraft);
+                    if(toRelease.isEmpty())sender.sendMessage("No crafts to release");
+                    else sender.sendMessage("Released "+toRelease.size()+" craft"+(toRelease.size()>1?"s":""));
+                }else{
+                    sender.sendMessage("You are not a player!");
+                }
+                return true;
+            }
+            @Override
+            protected String getUsage(){
+                return "/aeronautics release";
             }
         });
         AeronauticsCommand debugOn = new AeronauticsCommand("on"){

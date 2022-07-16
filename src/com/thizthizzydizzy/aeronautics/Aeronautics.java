@@ -359,6 +359,9 @@ public class Aeronautics extends JavaPlugin implements Listener{
             newCraft.init();
         }
     }
+    public void releaseCraft(Craft craft){
+        crafts.remove(craft);
+    }
     public static Direction getSignRotation(BlockData data){
         if(data instanceof WallSign){
             WallSign sign = (WallSign)data;

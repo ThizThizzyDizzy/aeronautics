@@ -234,12 +234,12 @@ public class StandardEngine extends Engine{
         }
         for(var eng : subEngines)eng.tick(engine, this);
         Vector velocity = engine.get("velocity");
-        velocity.add(getGravityVector());
         MediumCache mediums = engine.getCraft().getCurrentMediums();
-        double buoyantForce = mediums.shipVolume*mediums.buoyancy;
+        double buoyantForce = mediums.shipVolume*mediums.buoyancy*gravity;
         double dragMult = mediums.drag;
         long mass = engine.getLong("mass");
-        if(mass>0){
+        if(mass>0){//only move if mass is non-zero
+            velocity.add(getGravityVector());
             velocity.add(new Vector(0, buoyantForce/mass, 0));
             for(var eng : subEngines){
                 velocity.add(eng.getCurrentThrust(engine, this).multiply(1d/mass));
@@ -261,18 +261,20 @@ public class StandardEngine extends Engine{
         pendingTravel.add(velocity);
         int delay = engine.get("moveDelay");
         if(delay<=0){
+            engine.getCraft().aeronautics.debug(engine.getCraft().getCrew(), "Mass: "+mass);
             engine.getCraft().aeronautics.debug(engine.getCraft().getCrew(), "Pending travel: "+pendingTravel.toString());
             engine.getCraft().aeronautics.debug(engine.getCraft().getCrew(), "Velocity: "+velocity.toString());
             engine.getCraft().aeronautics.debug(engine.getCraft().getCrew(), "Buoyant force: "+buoyantForce);
             engine.getCraft().aeronautics.debug(engine.getCraft().getCrew(), "Gravity force: "+gravity*mass);
             engine.getCraft().aeronautics.debug(engine.getCraft().getCrew(), "Drag multiplier: "+dragMult);
             int len = Math.min((int)pendingTravel.length(), Math.max((int)Math.abs(pendingTravel.getX()), Math.max((int)Math.abs(pendingTravel.getY()), (int)Math.abs(pendingTravel.getZ()))));
-            engine.getCraft().aeronautics.debug(engine.getCraft().getCrew(), "Travel len: "+len);
-            if(len>minMoveDistance){
+            engine.getCraft().aeronautics.debug(engine.getCraft().getCrew(), "Travel len: "+len+"/"+minMoveDistance);
+            if(len>=minMoveDistance){
                 int dx = (int)pendingTravel.getX();
                 int dy = (int)pendingTravel.getY();
                 int dz = (int)pendingTravel.getZ();
                 if(engine.getCraft().move(dx, dy, dz, engine.getCraft().type.mediums)){
+                    engine.getCraft().aeronautics.debug(engine.getCraft().getCrew(), "Moved by "+dx+" "+dy+" "+dz);
                     pendingTravel.subtract(new Vector(dx,dy,dz));
                 }else{
                     velocity.multiply(0);
@@ -281,7 +283,6 @@ public class StandardEngine extends Engine{
                 engine.set("moveDelay", minMoveInterval);
             }
         }else engine.set("moveDelay", delay-1);
-        //TODO drag and buoyancy based on medium
         //TODO rotation
         //TODO holding steady vertically
     }
