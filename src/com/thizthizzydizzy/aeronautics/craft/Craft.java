@@ -1456,6 +1456,7 @@ public class Craft{
     public ArrayList<Multiblock> getMultiblocks(){
         return new ArrayList<>(multiblocks);//so you can't modify the list
     }
+    //TODO calculate mediums based on where the actual volume of the ship is, rather than assuming uniform distribution based on surface area
     public MediumCache getCurrentMediums(){
         if(cachedCurrentMediums!=null)return cachedCurrentMediums;
         Set<Block> outsideBlocks = new HashSet<>();
