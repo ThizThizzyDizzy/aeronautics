@@ -1434,9 +1434,10 @@ public class Craft{
         return contains(Arrays.asList(blocks));
     }
     public boolean contains(Collection<Block> blocks){
-        ArrayList<Block> list = new ArrayList<>(blocks);
-        list.removeAll(this.blocks);//TODO is this actually faster than a bunch of .contains()?
-        return list.isEmpty();
+//        ArrayList<Block> list = new ArrayList<>(blocks);
+//        list.removeAll(this.blocks);//is this actually faster than a bunch of .contains()?
+//        return list.isEmpty();
+        return this.blocks.containsAll(blocks);//y'know this is probably faster than that anyway
     }
     private void actionbarIfOnBoard(Player player, String string){
         if(isOnBoard(player))Vanillify.actionbar(player, string);
