@@ -404,6 +404,9 @@ public class StandardEngine extends Engine{
         if(blockMass.containsKey(m))return blockMass.get(m);
         return m.isBlock()?defaultBlockMass:defaultItemMass;
     }
+    public int getItemMass(Material m, int count){
+        return (int)(getMass(m)*count*itemMassMultiplier);
+    }
     @Override
     public void onRegister(){
         EnergyDistributionSystem.init();

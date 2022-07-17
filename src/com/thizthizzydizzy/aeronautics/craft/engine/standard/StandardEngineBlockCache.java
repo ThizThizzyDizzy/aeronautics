@@ -23,6 +23,9 @@ public class StandardEngineBlockCache extends BlockCache{
                 }
             }
         }
+        for(var item : items.keySet()){
+            total+=standardEngine.getItemMass(item, items.get(item));
+        }
         mass = total;
         comX = x/total;
         comY = y/total;

@@ -2,8 +2,10 @@ package com.thizthizzydizzy.aeronautics.craft;
 import java.util.HashMap;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.inventory.ItemStack;
 public class BlockCache{
     public HashMap<Integer, HashMap<Integer, HashMap<Integer, CachedBlock>>> blocks = new HashMap<>();
+    public HashMap<Material, Integer> items = new HashMap<>();
     public int minX = 0, minY = 0, minZ = 0, maxX = 0, maxY = 0, maxZ = 0;
     public double covX, covY, covZ;
     public void add(Block b){
@@ -15,6 +17,15 @@ public class BlockCache{
         if(b.getX()>maxX||blocks.size()==1)maxX = b.getX();
         if(b.getY()>maxY||blocks.size()==1)maxY = b.getY();
         if(b.getZ()>maxZ||blocks.size()==1)maxZ = b.getZ();
+    }
+    public void add(Block b, ItemStack... items){
+        add(b);
+        int x = b.getX();
+        int y = b.getY();
+        int z = b.getZ();
+        for(ItemStack s : items){
+            this.items.put(s.getType(), this.items.getOrDefault(s.getType(), 0)+s.getAmount());
+        }
     }
     public boolean isSolid(double x, double y, double z){
         CachedBlock b = blocks.getOrDefault((int)Math.floor(x), new HashMap<>()).getOrDefault((int)Math.floor(y), new HashMap<>()).get((int)Math.floor(z));

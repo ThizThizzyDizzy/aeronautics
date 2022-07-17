@@ -1449,7 +1449,10 @@ public class Craft{
     }
     public <T extends BlockCache> T generateBlockCache(T cache){
         for(Block b : blocks){
-            cache.add(b);
+            BlockState state = b.getState();
+            if(state instanceof Container){
+                cache.add(b, ((Container)state).getInventory().getContents());
+            }else cache.add(b);
         }
         return cache;
     }
