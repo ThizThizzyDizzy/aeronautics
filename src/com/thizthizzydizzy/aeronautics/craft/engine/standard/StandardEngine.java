@@ -9,6 +9,8 @@ import com.thizthizzydizzy.aeronautics.craft.MediumCache;
 import com.thizthizzydizzy.aeronautics.craft.Message;
 import com.thizthizzydizzy.aeronautics.craft.engine.Engine;
 import com.thizthizzydizzy.aeronautics.craft.multiblock.Multiblock;
+import com.thizthizzydizzy.aeronautics.craft.multiblock.standard_engine.StandardEngineEngine;
+import com.thizthizzydizzy.aeronautics.craft.multiblock.standard_engine.engine.StandardEngineLiftCell;
 import com.thizthizzydizzy.vanillify.Vanillify;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -51,6 +53,7 @@ public class StandardEngine extends Engine{
     
     private int minMoveInterval;
     private int minMoveDistance;
+    private int maxMoveDistance;
     
     public StandardEngine(){
         super("aeronautics:standard_engine");
@@ -104,6 +107,7 @@ public class StandardEngine extends Engine{
         itemMassMultiplier = aerodynamicSettings.getDouble("item_mass_multiplier");
         minMoveInterval = json.getInt("min_move_interval");
         minMoveDistance = json.getInt("min_move_distance");
+        maxMoveDistance = json.getInt("max_move_distance");
     }
     @Override
     protected void createSigns(ArrayList<CraftSign> signs){}
@@ -269,6 +273,9 @@ public class StandardEngine extends Engine{
             engine.getCraft().aeronautics.debug(engine.getCraft().getCrew(), "Drag multiplier: "+dragMult);
             int len = Math.min((int)pendingTravel.length(), Math.max((int)Math.abs(pendingTravel.getX()), Math.max((int)Math.abs(pendingTravel.getY()), (int)Math.abs(pendingTravel.getZ()))));
             engine.getCraft().aeronautics.debug(engine.getCraft().getCrew(), "Travel len: "+len+"/"+minMoveDistance);
+            if(len>maxMoveDistance){
+                pendingTravel.multiply(maxMoveDistance*1d/len);
+            }
             if(len>=minMoveDistance){
                 int dx = (int)pendingTravel.getX();
                 int dy = (int)pendingTravel.getY();
@@ -282,9 +289,34 @@ public class StandardEngine extends Engine{
                 }
                 engine.set("moveDelay", minMoveInterval);
             }
+            double liftRequired = gravity*mass-buoyantForce;
+            double minLift = 0;
+            double maxLift = 0;
+            double currentLift = 0;
+            for(SubEngine eng : subEngines){
+                currentLift+=eng.getCurrentThrust(engine, this).getY();
+                double thrust = eng.getMaxThrust(engine, this, Direction.UP);
+                if(thrust>0){
+                    minLift+=eng.getThrottleMin(engine, this, Direction.UP)*thrust;
+                    maxLift+=eng.getThrottleMax(engine, this, Direction.UP)*thrust;
+                }
+            }
+            double targetThrottle = 0;//relative, 0 - 1 being min - max, not 0 - 1
+            //TODO make this respect engines that want to overdrive, keeping all engines at the same throttle level (so 5 engines that go 0 - 1 will be maxed before an engine that goes 0 - 2 will be)
+            //TODO allow engines to be shut down when not needed (engines that have a min throttle >0 but can still be shut down)
+            if(liftRequired<minLift)targetThrottle = 0;
+            else if(liftRequired>maxLift)targetThrottle = 1;
+            else{
+                targetThrottle = (liftRequired-minLift)/(maxLift-minLift);
+            }
+            for(var eng : subEngines){
+                double min = eng.getThrottleMin(engine, this, Direction.UP);
+                double max = eng.getThrottleMax(engine, this, Direction.UP);
+                eng.setThrottle(engine, this, Direction.UP, min+(max-min)*targetThrottle);
+            }
+            engine.getCraft().aeronautics.debug(engine.getCraft().getCrew(), "Lift: "+currentLift+"/"+liftRequired+"/"+maxLift);
         }else engine.set("moveDelay", delay-1);
         //TODO rotation
-        //TODO holding steady vertically
     }
     int iii = 0;
     private void drawNet(World world, AerodynamicNet net, AerodynamicNetSide side, Color color){

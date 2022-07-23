@@ -26,8 +26,6 @@ public class OmnipresentEDS extends BalancedEDS{
     @Override
     public void updateHull(CraftEngine engine, StandardEngine standardEngine, int damage, boolean damaged){}
     @Override
-    public void getMessages(CraftEngine engine, StandardEngine standardEngine, ArrayList<Message> messages){}
-    @Override
     public void getMultiblockTypes(CraftEngine engine, StandardEngine standardEngine, ArrayList<Multiblock> multiblockTypes){}
     @Override
     public ArrayList<Multiblock> getConnectedMultiblocks(CraftEngine engine){

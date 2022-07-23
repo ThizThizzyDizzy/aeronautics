@@ -104,7 +104,7 @@
                             "items": [
                                 "minecraft:coal_block"
                             ],
-                            "power": 200,
+                            "power": 2000,
                             "time": 16000
                         },
                         {
@@ -112,7 +112,7 @@
                                 "minecraft:coal",
                                 "minecraft:charcoal"
                             ],
-                            "power": 200,
+                            "power": 2000,
                             "time": 1600
                         }
                     ],
@@ -322,6 +322,7 @@
                 },
                 {
                     "type": "aeronautics:lift_cell",
+                    "energy_distribution_system": "electric",
                     "min_size": 1,
                     "max_size": 8,
                     "interior":[
@@ -334,8 +335,8 @@
                         "minecraft:sponge"
                     ],
                     "no_power_cooldown_mult": 0.1,
-                    "lift_per_block": 100,
-                    "warmup_time_base": 100,
+                    "lift_per_block": 10,
+                    "warmup_time_base": 1000,
                     "power_usage_min": 10,
                     "power_usage_max": 100
                 }
@@ -358,7 +359,7 @@
                         "colors": "aerodynamics_north"
                     }
                 },
-                "gravity": 9.81,
+                "gravity": 1,
                 "balancing": {
                     "drift_multiplier": 1
                 },
@@ -389,6 +390,14 @@
                     },
                     {
                         "materials": [
+                            "minecraft:white_concrete_powder",
+                            "minecraft:snow_block",
+                            "minecraft:sponge"
+                        ],
+                        "mass": 3
+                    },
+                    {
+                        "materials": [
                             "minecraft:white_concrete",
                             "minecraft:orange_concrete",
                             "minecraft:magenta_concrete",
@@ -405,7 +414,6 @@
                             "minecraft:green_concrete",
                             "minecraft:red_concrete",
                             "minecraft:black_concrete",
-                            "minecraft:white_concrete_powder",
                             "minecraft:orange_concrete_powder",
                             "minecraft:magenta_concrete_powder",
                             "minecraft:light_blue_concrete_powder",
@@ -459,7 +467,8 @@
                 "item_mass_multiplier": 0.015625
             },
             "min_move_interval": 10,
-            "min_move_distance": 2
+            "min_move_distance": 1,
+            "max_move_distance": 6
         }
     ],
     "allowed_blocks": [

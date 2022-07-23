@@ -43,5 +43,7 @@ public abstract class SubEngine{
     }
     public abstract double getMaxThrust(CraftEngine engine, StandardEngine standardEngine, Direction dir);
     public abstract void setThrottle(CraftEngine engine, StandardEngine standardEngine, Direction dir, double throttle);
+    public abstract double getThrottleMin(CraftEngine engine, StandardEngine standardEngine, Direction dir);
+    public abstract double getThrottleMax(CraftEngine engine, StandardEngine standardEngine, Direction dir);
     public abstract Vector getCurrentThrust(CraftEngine engine, StandardEngine standardEngine);
 }

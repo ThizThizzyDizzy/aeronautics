@@ -1,5 +1,6 @@
 package com.thizthizzydizzy.aeronautics.craft.engine.standard.eds;
 import com.thizthizzydizzy.aeronautics.craft.CraftEngine;
+import com.thizthizzydizzy.aeronautics.craft.Message;
 import com.thizthizzydizzy.aeronautics.craft.engine.standard.EnergyDistributionSystem;
 import com.thizthizzydizzy.aeronautics.craft.engine.standard.StandardEngine;
 import com.thizthizzydizzy.aeronautics.craft.multiblock.Multiblock;
@@ -28,6 +29,7 @@ public abstract class BalancedEDS extends EnergyDistributionSystem{
         for(Multiblock mb : multiblocks){
             if(mb instanceof PowerConsumer pc){
                 totalDemand+=pc.getDemand();
+                consumers.add(pc);
             }
             if(mb instanceof PowerSupplier ps){
                 suppliers.put(ps, ps.getAvailablePower());
@@ -62,7 +64,15 @@ public abstract class BalancedEDS extends EnergyDistributionSystem{
                 remainingSupply-=power;
             }
         }
-        if(remainingSupply!=0)throw new IllegalArgumentException("Power was not distributed properly! "+remainingSupply+" remaining supply should be zero!");
+//        if(remainingSupply!=0)throw new IllegalArgumentException("Power was not distributed properly! "+remainingSupply+" remaining supply should be zero!");
+        lastSupply = actualSupply;
+        lastDemand = totalDemand;
+        lastExcess = remainingSupply;
     }
+    int lastSupply, lastDemand, lastExcess;
     public abstract ArrayList<Multiblock> getConnectedMultiblocks(CraftEngine engine);
+    @Override
+    public void getMessages(CraftEngine engine, StandardEngine standardEngine, ArrayList<Message> messages){
+        messages.add(new Message(Message.Priority.CRITICAL, true, true, lastSupply+"/"+lastDemand+"|"+lastExcess));
+    }
 }

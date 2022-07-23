@@ -24,6 +24,7 @@ public class BlockCache{
         int y = b.getY();
         int z = b.getZ();
         for(ItemStack s : items){
+            if(s==null)continue;
             this.items.put(s.getType(), this.items.getOrDefault(s.getType(), 0)+s.getAmount());
         }
     }

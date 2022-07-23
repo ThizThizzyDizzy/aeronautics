@@ -744,7 +744,7 @@ public class Craft{
     }
     public BoundingBox getBoundingBox(){
         if(bbox==null)calculateBoundingBox();
-        return bbox;
+        return new BoundingBox().copy(bbox);
     }
     private void calculateBoundingBox(){
         if(blocks.isEmpty())bbox = new BoundingBox(0, 0, 0, 0, 0, 0);
