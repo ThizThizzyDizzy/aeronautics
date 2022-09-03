@@ -343,4 +343,13 @@ public class PDCMultiblock extends Multiblock{
             }
         }
     }
+    @Override
+    public String[] getBlockStats(boolean onSign){
+        return null;
+    }
+    @Override
+    public boolean contains(Block block){
+        return false;
+        //TODO actually check
+    }
 }

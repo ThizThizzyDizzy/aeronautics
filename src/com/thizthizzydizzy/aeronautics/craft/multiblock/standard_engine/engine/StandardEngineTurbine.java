@@ -256,6 +256,10 @@ public class StandardEngineTurbine extends Multiblock implements PowerConsumer, 
     public void consume(int power){
         storedPower+=power;
     }
+    @Override
+    public boolean contains(Block block){
+        return false;//TODO actually check
+    }
     public static class Blade{
         private final int location;
         private final int rotation;
@@ -274,5 +278,9 @@ public class StandardEngineTurbine extends Multiblock implements PowerConsumer, 
     @Override
     public Vector getCurrentThrust(){
         return facing.toVector().multiply(getMaxThrust(facing));
+    }
+    @Override
+    public String[] getBlockStats(boolean onSign){
+        return null;
     }
 }

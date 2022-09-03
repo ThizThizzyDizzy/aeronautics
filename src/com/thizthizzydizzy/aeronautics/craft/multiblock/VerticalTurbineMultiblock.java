@@ -807,4 +807,13 @@ public class VerticalTurbineMultiblock extends Multiblock{
     public void onDestroy(){}
     @Override
     public void onRotated(int rotation){}
+    @Override
+    public String[] getBlockStats(boolean onSign){
+        return null;
+    }
+    @Override
+    public boolean contains(Block block){
+        return false;
+        //TODO actually check
+    }
 }

@@ -1,14 +1,25 @@
 package com.thizthizzydizzy.aeronautics.craft;
+import org.bukkit.entity.Player;
 public class Message{
+    public Player player;
     public final String text;
     public final Priority priority;
     public final boolean pilot;
     public final boolean crew;
-    public Message(Priority priority, boolean pilot, boolean crew, String text){
+    public final boolean raw;
+    public Message(Priority priority, boolean pilot, boolean crew, String text, boolean raw){
         this.text = text;
         this.priority = priority;
         this.pilot = pilot;
         this.crew = crew;
+        this.raw = raw;
+    }
+    public Message(Priority priority, boolean pilot, boolean crew, String text){
+        this(priority, pilot, crew, text, false);
+    }
+    public Message(Priority priority, boolean pilot, boolean crew, Player player, String text, boolean raw){
+        this(priority, pilot, crew, text, raw);
+        this.player = player;
     }
     public static enum Priority{
         /**

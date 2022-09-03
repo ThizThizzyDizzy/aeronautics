@@ -72,7 +72,5 @@ public abstract class BalancedEDS extends EnergyDistributionSystem{
     int lastSupply, lastDemand, lastExcess;
     public abstract ArrayList<Multiblock> getConnectedMultiblocks(CraftEngine engine);
     @Override
-    public void getMessages(CraftEngine engine, StandardEngine standardEngine, ArrayList<Message> messages){
-        messages.add(new Message(Message.Priority.CRITICAL, true, true, lastSupply+"/"+lastDemand+"|"+lastExcess));
-    }
+    public void getMessages(CraftEngine engine, StandardEngine standardEngine, ArrayList<Message> messages){}
 }

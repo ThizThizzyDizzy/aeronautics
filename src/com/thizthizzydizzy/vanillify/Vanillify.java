@@ -23,6 +23,9 @@ public class Vanillify{
     public static void actionbar(Player player, String text){
         WRAPPER.actionbar(player, text);
     }
+    public static void actionbarRaw(Player player, String text){
+        WRAPPER.actionbarRaw(player, text);
+    }
     public static void smoothTeleport(Entity entity, Location to){
         World world = entity.getWorld();
         if(world!=to.getWorld())entity.teleport(to);

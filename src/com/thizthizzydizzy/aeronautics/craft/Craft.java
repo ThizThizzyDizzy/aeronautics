@@ -163,24 +163,59 @@ public class Craft{
             messages.clear();
             messages.addAll(criticalMessages);
         }
-        String crew = "";
-        String pilot = "";
-        for(Message m : messages){
-            if(m.priority.shouldDisplay(mode)){
-                if(m.crew)crew+=" | "+m.text;
-                if(m.pilot)pilot+=" | "+m.text;
+        HashSet<Player> hadPilotMessage = new HashSet<>();
+        for(Player player : pilots){
+            ArrayList<String> strs = new ArrayList<>();
+            for(Message m : messages){
+                if(m.priority.shouldDisplay(mode)){
+                    if(m.pilot&&(m.player==null||m.player==player)){
+                        if(m.raw){
+                            if(!strs.isEmpty())strs.add(" | ");
+                            strs.add(m.text);
+                        }else strs.add(strs.isEmpty()?m.text:(" | "+m.text));
+                    }
+                }
             }
+            if(!strs.isEmpty())hadPilotMessage.add(player);
+            String raw = "";
+            String str = "";
+            for(String s : strs){
+                if(s.startsWith("[{")||s.startsWith("{")){
+                    raw+=",{\"font\":\"minecraft:default\",\"text\":\""+str+"\"}";
+                    str = "";
+                    if(s.startsWith("["))raw+=","+s.substring(1, s.length()-1);
+                    else raw+=","+s;
+                }else str+=s;
+            }
+            raw+=",{\"font\":\"minecraft:default\",\"text\":\""+str+"\"}";
+            actionbarRawIfOnBoard(player, "["+raw.substring(1)+"]");
         }
-        if(!crew.isEmpty()){
-            for(Player player : getCrew()){
-                if(pilots.contains(player)&&!pilot.isEmpty())continue;//pilots have their own collection
-                actionbarIfOnBoard(player, crew.substring(3));
+        for(Player player : getCrew()){
+            if(hadPilotMessage.contains(player))continue;
+            ArrayList<String> strs = new ArrayList<>();
+            for(Message m : messages){
+                if(m.priority.shouldDisplay(mode)){
+                    if(m.crew&&(m.player==null||m.player==player)){
+                        if(m.raw){
+                            if(!strs.isEmpty())strs.add(" | ");
+                            strs.add(m.text);
+                        }else strs.add(strs.isEmpty()?m.text:(" | "+m.text));
+                    }
+                }
             }
-        }
-        if(!pilot.isEmpty()){
-            for(Player player : pilots){
-                actionbarIfOnBoard(player, pilot.substring(3));
+            if(!strs.isEmpty())hadPilotMessage.add(player);
+            String raw = "";
+            String str = "";
+            for(String s : strs){
+                if(s.startsWith("[{")||s.startsWith("{")){
+                    raw+=",{\"font\":\"minecraft:default\",\"text\":\""+str+"\"}";
+                    str = "";
+                    if(s.startsWith("["))raw+=","+s.substring(1, s.length()-1);
+                    else raw+=","+s;
+                }else str+=s;
             }
+            raw+=",{\"font\":\"minecraft:default\",\"text\":\""+str+"\"}";
+            actionbarRawIfOnBoard(player, "["+raw.substring(1)+"]");
         }
     }
     public boolean hasEngine(String engine){
@@ -1263,6 +1298,7 @@ public class Craft{
         return getSigns().contains(sign);
     }
     public boolean contains(Block block){
+        if(block==null)return false;
         if(block.getState() instanceof Sign)return contains((Sign)block.getState());
         return blocks.contains(block);
     }
@@ -1423,6 +1459,7 @@ public class Craft{
             for(Multiblock type : multiblockTypes){
                 Multiblock multiblock = type.detect(this, b);
                 if(multiblock!=null){
+                    notifyPilots("Found new multiblock "+multiblock.toString()+" at "+multiblock.origin.toString()+"!");
                     aeronautics.debug(pilots, "Found new multiblock "+multiblock.toString()+" at "+multiblock.origin.toString()+"!");
                     multiblocks.add(multiblock);
                     multiblock.init();
@@ -1441,6 +1478,9 @@ public class Craft{
     }
     private void actionbarIfOnBoard(Player player, String string){
         if(isOnBoard(player))Vanillify.actionbar(player, string);
+    }
+    private void actionbarRawIfOnBoard(Player player, String string){
+        if(isOnBoard(player))Vanillify.actionbarRaw(player, string);
     }
     public Aeronautics getAeronautics(){
         return aeronautics;
@@ -1480,6 +1520,12 @@ public class Craft{
     }
     public void clearMediumsCache(){
         cachedCurrentMediums = null;
+    }
+    public Multiblock getMultiblock(Block block){
+        for(var mb : getMultiblocks()){
+            if(mb.contains(block))return mb;
+        }
+        return null;
     }
     public static class BlockChange implements Comparable<BlockChange>{
         private final Material type;

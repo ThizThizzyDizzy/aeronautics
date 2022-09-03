@@ -58,4 +58,14 @@ public class StandardEngineSingleBlockGenerator extends Multiblock implements Po
     public String getEDSName(){
         return generator.getEDSName();
     }
+    @Override
+    public String[] getBlockStats(boolean onSign){
+        return new String[]{
+            (onSign?"Pow: ":"Producing ")+generator.power
+        };
+    }
+    @Override
+    public boolean contains(Block block){
+        return block==origin;
+    }
 }

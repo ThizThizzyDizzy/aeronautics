@@ -31,6 +31,7 @@ import com.thizthizzydizzy.aeronautics.craft.special.TNTDirector;
 import com.thizthizzydizzy.aeronautics.craft.special.TNTImpactDetonation;
 import com.thizthizzydizzy.aeronautics.craft.special.TNTTracer;
 import com.thizthizzydizzy.aeronautics.craft.special.LegacyTurbine;
+import com.thizthizzydizzy.aeronautics.craft.special.MultiblockTooltip;
 import com.thizthizzydizzy.aeronautics.craft.special.VerticalTurbine;
 import com.thizthizzydizzy.aeronautics.file.FileFormat;
 import com.thizthizzydizzy.aeronautics.listener.BlockListener;
@@ -242,6 +243,7 @@ public class Aeronautics extends JavaPlugin implements Listener{
         event.registerSpecial(new DamageReport());
         event.registerSpecial(new LegacyTurbine());
         event.registerSpecial(new VerticalTurbine());
+        event.registerSpecial(new MultiblockTooltip());
     }
     @EventHandler
     public void initStandardEngine(StandardEngineInitializationEvent event){

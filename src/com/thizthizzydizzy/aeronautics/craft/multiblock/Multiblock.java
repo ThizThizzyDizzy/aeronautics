@@ -50,4 +50,6 @@ public abstract class Multiblock{
         return true;
     }
     public abstract void onRotated(int rotation);
+    public abstract String[] getBlockStats(boolean onSign);
+    public abstract boolean contains(Block block);
 }

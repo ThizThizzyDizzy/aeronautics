@@ -153,7 +153,76 @@ public class StandardEngineLiftCell extends Multiblock implements PowerConsumer,
     }
     @Override
     public boolean rescan(){
-        return liftCell.cores.contains(origin.getType());//TODO actual rescan, not just checking the core!
+        if(!liftCell.cores.contains(origin.getType()))return false;//not a core
+        if(true)return true;//TODO make it actually work
+        for(Direction d : Direction.NONZERO){
+            ArrayList<Block> blocksToScan = new ArrayList<>();
+            if(d.x>0){
+                for(int dy = -dyn; dy<=dyp; dy++){
+                    for(int dz = -dzn; dz<=dzp; dz++){
+                        blocksToScan.add(origin.getRelative(dxp+1,dy,dz));
+                    }
+                }
+            }
+            if(d.x<0){
+                for(int dy = -dyn; dy<=dyp; dy++){
+                    for(int dz = -dzn; dz<=dzp; dz++){
+                        blocksToScan.add(origin.getRelative(-dxn-1,dy,dz));
+                    }
+                }
+            }
+            if(d.y>0){
+                for(int dx = -dxn; dx<=dxp; dx++){
+                    for(int dz = -dzn; dz<=dzp; dz++){
+                        blocksToScan.add(origin.getRelative(dx,dyp+1,dz));
+                    }
+                }
+            }
+            if(d.y<0){
+                for(int dx = -dxn; dx<=dxp; dx++){
+                    for(int dz = -dzn; dz<=dzp; dz++){
+                        blocksToScan.add(origin.getRelative(dx,-dyn-1,dz));
+                    }
+                }
+            }
+            if(d.z>0){
+                for(int dx = -dxn; dx<=dxp; dx++){
+                    for(int dy = -dyn; dy<=dyp; dy++){
+                        blocksToScan.add(origin.getRelative(dx,dy,dzp+1));
+                    }
+                }
+            }
+            if(d.z<0){
+                for(int dx = -dxn; dx<=dxp; dx++){
+                    for(int dy = -dyn; dy<=dyp; dy++){
+                        blocksToScan.add(origin.getRelative(dx,dy,-dzn-1));
+                    }
+                }
+            }
+            if(!blocksToScan.stream().noneMatch(b->(!liftCell.interior.contains(b.getType())))){
+                return false;
+            }
+        }
+        ArrayList<Block> blocksToScan = new ArrayList<>();
+        for(int dy = -dyn; dy<=dyp; dy++){
+            for(int dz = -dzn; dz<=dzp; dz++){
+                blocksToScan.add(origin.getRelative(dxp+1,dy,dz));
+                blocksToScan.add(origin.getRelative(-dxn-1,dy,dz));
+            }
+        }
+        for(int dx = -dxn; dx<=dxp; dx++){
+            for(int dz = -dzn; dz<=dzp; dz++){
+                blocksToScan.add(origin.getRelative(dx,dyp+1,dz));
+                blocksToScan.add(origin.getRelative(dx,-dyn-1,dz));
+            }
+        }
+        for(int dx = -dxn; dx<=dxp; dx++){
+            for(int dy = -dyn; dy<=dyp; dy++){
+                blocksToScan.add(origin.getRelative(dx,dy,dzp+1));
+                blocksToScan.add(origin.getRelative(dx,dy,-dzn-1));
+            }
+        }
+        return blocksToScan.stream().noneMatch(b->(!liftCell.exterior.contains(b.getType())));
     }
     @Override
     public void onDestroy(){}
@@ -227,5 +296,30 @@ public class StandardEngineLiftCell extends Multiblock implements PowerConsumer,
     @Override
     public Vector getCurrentThrust(){
         return new Vector(0, currentThrottle*getMaxThrust(Direction.UP), 0);
+    }
+    @Override
+    public String[] getBlockStats(boolean onSign){
+        int throttlePercent = (int)Math.round(currentThrottle*100);
+        int targetPercent = (int)Math.round(targetThrottle*100);
+        return new String[]{
+            "Lift: "+throttlePercent+"%",
+            "Target: "+targetPercent+"%"
+        };
+    }
+    @Override
+    public boolean contains(Block block){
+        int x = block.getX();
+        int y = block.getY();
+        int z = block.getZ();
+        int ox = origin.getX();
+        int oy = origin.getY();
+        int oz = origin.getZ();
+        int xb = Math.min(x-(ox-dxn-1),-x+(ox+dxp+1));
+        int yb = Math.min(y-(oy-dyn-1),-y+(oy+dyp+1));
+        int zb = Math.min(z-(oz-dzn-1),-z+(oz+dzp+1));
+        if(xb>=0&&yb>=1&&zb>=1)return true;
+        if(xb>=1&&yb>=0&&zb>=1)return true;
+        if(xb>=1&&yb>=1&&zb>=0)return true;
+        return false;
     }
 }

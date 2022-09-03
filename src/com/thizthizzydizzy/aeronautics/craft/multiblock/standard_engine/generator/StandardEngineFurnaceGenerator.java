@@ -12,6 +12,7 @@ import org.bukkit.inventory.FurnaceInventory;
 import org.bukkit.inventory.ItemStack;
 import com.thizthizzydizzy.aeronautics.craft.multiblock.standard_engine.PowerSupplier;
 import java.util.List;
+import org.bukkit.ChatColor;
 public class StandardEngineFurnaceGenerator extends Multiblock implements PowerSupplier{
     private final CraftEngine enigne;
     private final StandardEngine standardEngine;
@@ -82,5 +83,23 @@ public class StandardEngineFurnaceGenerator extends Multiblock implements PowerS
     @Override
     public String getEDSName(){
         return generator.getEDSName();
+    }
+    @Override
+    public String[] getBlockStats(boolean onSign){
+        if(burning!=null){
+            return new String[]{
+                ChatColor.GREEN+"Running",
+                (onSign?"Pow":"Power")+": "+burning.power,
+                (onSign?"Tim":"Time")+": "+burnTime
+            };
+        }else{
+            return new String[]{
+                ChatColor.YELLOW+"Idle"
+            };
+        }
+    }
+    @Override
+    public boolean contains(Block block){
+        return block.getX()==origin.getX()&&block.getY()==origin.getY()&&block.getZ()==origin.getZ();
     }
 }

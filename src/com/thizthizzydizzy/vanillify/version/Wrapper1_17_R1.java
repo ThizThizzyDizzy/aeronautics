@@ -11,4 +11,9 @@ public class Wrapper1_17_R1 implements VersionWrapper{
         PacketPlayOutChat packet = new PacketPlayOutChat(IChatBaseComponent.ChatSerializer.a("{\"text\":\""+text+"\"}"), ChatMessageType.c, new UUID(0L,0L));
         ((CraftPlayer)player).getHandle().b.sendPacket(packet);
     }
+    @Override
+    public void actionbarRaw(Player player, String text){
+        PacketPlayOutChat packet = new PacketPlayOutChat(IChatBaseComponent.ChatSerializer.a(text), ChatMessageType.c, new UUID(0L,0L));
+        ((CraftPlayer)player).getHandle().b.sendPacket(packet);
+    }
 }

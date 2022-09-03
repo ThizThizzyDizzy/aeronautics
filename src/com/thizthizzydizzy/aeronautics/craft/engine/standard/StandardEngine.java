@@ -9,8 +9,6 @@ import com.thizthizzydizzy.aeronautics.craft.MediumCache;
 import com.thizthizzydizzy.aeronautics.craft.Message;
 import com.thizthizzydizzy.aeronautics.craft.engine.Engine;
 import com.thizthizzydizzy.aeronautics.craft.multiblock.Multiblock;
-import com.thizthizzydizzy.aeronautics.craft.multiblock.standard_engine.StandardEngineEngine;
-import com.thizthizzydizzy.aeronautics.craft.multiblock.standard_engine.engine.StandardEngineLiftCell;
 import com.thizthizzydizzy.vanillify.Vanillify;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -418,7 +416,6 @@ public class StandardEngine extends Engine{
         for(var eds : energyDistributionSystems){
             eds.getMessages(engine, this, messages);
         }
-        messages.add(new Message(Message.Priority.INFO_UNIVERSAL, true, true, "pos "+engine.getCraft().getOrigin().toVector().toString()));
     }
     @Override
     public void getMultiblockTypes(CraftEngine engine, ArrayList<Multiblock> multiblockTypes){
